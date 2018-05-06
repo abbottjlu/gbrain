@@ -67,6 +67,8 @@ export class GBrainRL {
         this.sweep = 0;
         this.sweepMax = 200;
         this.sweepDir = 0;
+        this.sweepEnable = false;
+        this.plotEnable = true;
 
         this.arrInputs = [];
         this.arrTargets = [];
@@ -79,7 +81,7 @@ export class GBrainRL {
 
         let target = document.createElement("div");
         document.getElementsByTagName("body")[0].appendChild(target);
-        target.style.width = "510px";
+        target.style.width = "950px";
         target.innerHTML = `
         <div style="min-width:300px; font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0px 0px 5px 0px inset; border-radius:5px;">
             <div id="elGbrainWindowHandle" style="border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;	display:table;">
@@ -89,29 +91,39 @@ export class GBrainRL {
                 </div>
             </div>
             <div style="border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;	cursor:default;	padding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;">
-
-                <canvas id="elPlotCanvas"></canvas>
-                <button id="BTNID_PLOTMODE" style="display:inline-block;">Plot mode</button>
-                <div id="el_info"></div>
-                <div>
-                    View weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
-                    View weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/>
+                <div style="display:inline-block;width:400px;">
+                    Loss
+                    <canvas id="elPlotLoss" style="background:#FFF"></canvas><br />
+                    Epsilon
+                    <canvas id="elPlotEpsilon" style="background:#FFF"></canvas><br />
+                    <button id="BTNID_PLOTMODE" style="display:inline-block;">Plot mode</button>
+                    <button id="BTNID_PLOTENABLE" style="display:inline-block;">Enable plot</button>
+                    <div id="el_info"></div>
+                    <div>
+                        View weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
+                        View weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/>
+                    </div>
+                    <button id="BTNID_SWEEPEPSILON" style="display:inline-block;">Sweep epsilon</button>
+                    <button id="BTNID_STOP" style="display:inline-block;">Stop train</button>
+                    <button id="BTNID_RESUME" style="display:inline-block;">Resume train</button>
+                    <button id="BTNID_TOJSON" style="display:inline-block;">Output model in console</button>
+                    <button id="BTNID_TOLSJSON" style="display:inline-block;">Save model in LocalStorage</button>
+                    <button id="BTNID_FROMLSJSON" style="display:inline-block;">Load model from LocalStorage</button>
                 </div>
-                <button id="BTNID_STOP" style="display:inline-block;">Stop train</button>
-                <button id="BTNID_RESUME" style="display:inline-block;">Resume train</button>
-                <button id="BTNID_TOJSON" style="display:inline-block;">Output model in console</button>
-                <button id="BTNID_TOLSJSON" style="display:inline-block;">Save model in LocalStorage</button>
-                <button id="BTNID_FROMLSJSON" style="display:inline-block;">Load model from LocalStorage</button>
-                <br />
-                <div id="el_gbrainDisplay"></div>
-        
+                <div style="display:inline-block;">
+                    <div id="el_gbrainDisplay"></div>
+                </div>
             </div>
         </div>
         `;
         this.el_info = target.querySelector("#el_info");
 
         target.querySelector("#BTNID_PLOTMODE").addEventListener("click", () => {
-            this.costPlot.currentMode = (this.costPlot.currentMode === 0) ? 1 : 0;
+            this.plotLoss.currentMode = (this.plotLoss.currentMode === 0) ? 1 : 0;
+            this.plotEpsilon.currentMode = (this.plotEpsilon.currentMode === 0) ? 1 : 0;
+        });
+        target.querySelector("#BTNID_PLOTENABLE").addEventListener("click", () => {
+            this.plotEnable = (this.plotEnable !== true);
         });
         target.querySelector("#elem_enableOutputWeighted").addEventListener("click", () => {
             (this.showOutputWeighted === false) ? this.gbrain.enableShowOutputWeighted() : this.gbrain.disableShowOutputWeighted();
@@ -120,6 +132,10 @@ export class GBrainRL {
         target.querySelector("#elem_enableWeightDynamics").addEventListener("click", () => {
             (this.showWD === false) ? this.gbrain.enableShowWeightDynamics() : this.gbrain.disableShowWeightDynamics();
             this.showWD = !this.showWD;
+        });
+
+        target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", () => {
+            this.sweepEnable = (this.sweepEnable !== true);
         });
 
         target.querySelector("#BTNID_STOP").addEventListener("click", () => {
@@ -147,8 +163,12 @@ export class GBrainRL {
         dragg.setPosition((window.innerWidth/2)-500, -600);
 
         this.avgLossWin = new AvgWin();
-        this.costPlot = new Plot();
-        this.plotCanvas = target.querySelector("#elPlotCanvas");
+
+        this.plotLoss = new Plot();
+        this.plotLossCanvas = target.querySelector("#elPlotLoss");
+
+        this.plotEpsilon = new Plot();
+        this.plotEpsilonCanvas = target.querySelector("#elPlotEpsilon");
 
         this.clock = 0;
 
@@ -239,22 +259,22 @@ export class GBrainRL {
         let net_input = this.getNetInput(input_array);
         if(this.forward_passes > this.temporal_window) { // we have enough to actually do something reasonable
             if(this.learning === true) {
-                let otr = Math.min(1, Math.max(0, this.latest_reward));
-                let rewardMultiplier = (otr > 0) ? 1.0-otr : otr*-1;
-                rewardMultiplier = Math.min(1, Math.max(0, rewardMultiplier))*2;
-                rewardMultiplier = Math.min(1, Math.max(0.1, rewardMultiplier));
+                if(this.sweepEnable === true) {
+                    let otr = Math.min(1, Math.max(0, this.latest_reward));
+                    let rewardMultiplier = (otr > 0) ? 1.0-otr : otr*-1;
+                    rewardMultiplier = Math.min(1, Math.max(0, rewardMultiplier))*2;
+                    rewardMultiplier = Math.min(1, Math.max(0.1, rewardMultiplier));
 
-                if(this.sweep >= this.sweepMax)
-                    this.sweepDir = -1;
-                else if(this.sweep <= 0)
-                    this.sweepDir = 1;
+                    if(this.sweep >= this.sweepMax)
+                        this.sweepDir = -1;
+                    else if(this.sweep <= 0)
+                        this.sweepDir = 1;
 
-                this.sweep+=this.sweepDir;
-                let sweepMultiplier = (this.sweep/this.sweepMax);
-                //this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier);
-
-
-                this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
+                    this.sweep+=this.sweepDir;
+                    let sweepMultiplier = (this.sweep/this.sweepMax);
+                    this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier);
+                } else
+                    this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
             } else
                 this.epsilon = this.epsilon_test_time;
 
@@ -353,8 +373,13 @@ export class GBrainRL {
                                 this.loss = loss/(this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size);
                                 this.avgLossWin.add(Math.min(10.0, this.loss));
 
-                                this.costPlot.add(this.clock, this.avgLossWin.get_average());
-                                this.costPlot.drawSelf(this.plotCanvas);
+                                this.plotLoss.add(this.clock, this.avgLossWin.get_average());
+                                if(this.plotEnable === true)
+                                    this.plotLoss.drawSelf(this.plotLossCanvas);
+
+                                this.plotEpsilon.add(this.clock, this.epsilon);
+                                if(this.plotEnable === true)
+                                    this.plotEpsilon.drawSelf(this.plotEpsilonCanvas);
 
                                 this.onLearned(this.loss);
                             });
