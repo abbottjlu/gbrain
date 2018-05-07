@@ -270,7 +270,7 @@ export class GBrainRL {
                         this.sweep+=this.sweepDir;
                         let sweepMultiplier = (Math.abs(this.sweep)/this.sweepMax);
 
-                        this.epsilon = Math.max(this.epsilon_min, Math.min(1, Math.max(0.1, this.latest_reward))*sweepMultiplier*this.epsilon);
+                        this.epsilon = Math.max(this.epsilon_min, (1.0-Math.min(1, Math.max(0.0, this.latest_reward*2)))*sweepMultiplier*this.epsilon);
                     }
                 }
             } else
