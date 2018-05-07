@@ -5288,13 +5288,12 @@ var GBrainRL = exports.GBrainRL = function () {
                 if (this.learning === true) {
                     this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
                     if (this.sweepEnable === true) {
+                        if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
+                        this.sweep += this.sweepDir;
                         if (this.latest_reward > 0) {
-                            if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
-
-                            this.sweep += this.sweepDir;
+                            var rewardMultiplier = 1.0 - Math.min(1, Math.max(0.0, this.latest_reward * 2));
                             var sweepMultiplier = Math.abs(this.sweep) / this.sweepMax;
-
-                            this.epsilon = Math.max(this.epsilon_min, (1.0 - Math.min(1, Math.max(0.0, this.latest_reward * 2))) * sweepMultiplier * this.epsilon);
+                            this.epsilon = Math.max(this.epsilon_min, rewardMultiplier * sweepMultiplier * this.epsilon);
                         }
                     }
                 } else this.epsilon = this.epsilon_test_time;
