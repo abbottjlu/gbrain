@@ -260,8 +260,8 @@ export class GBrainRL {
         if(this.forward_passes > this.temporal_window) { // we have enough to actually do something reasonable
             if(this.learning === true) {
                 if(this.sweepEnable === true) {
-                    let otr = Math.min(1, Math.max(0, this.latest_reward));
-                    if(otr > 0) {
+                    if(this.latest_reward > 0) {
+                        let otr = Math.min(1, Math.max(0, this.latest_reward));
                         let rewardMultiplier = 1.0-otr;
                         rewardMultiplier = Math.max(0.1, rewardMultiplier*2);
 
