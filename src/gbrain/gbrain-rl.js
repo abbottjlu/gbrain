@@ -262,10 +262,6 @@ export class GBrainRL {
                 this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
                 if(this.sweepEnable === true) {
                     if(this.latest_reward > 0) {
-                        let otr = Math.min(1, Math.max(0, this.latest_reward));
-                        let rewardMultiplier = 1.0-otr;
-                        rewardMultiplier = Math.max(0.1, rewardMultiplier);
-
                         if(this.sweep >= this.sweepMax)
                             this.sweepDir = -1;
                         else if(this.sweep <= 0)
@@ -274,7 +270,7 @@ export class GBrainRL {
                         this.sweep+=this.sweepDir;
                         let sweepMultiplier = (Math.abs(this.sweep)/this.sweepMax);
 
-                        this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier*this.epsilon);
+                        this.epsilon = Math.max(this.epsilon_min, Math.min(1, Math.max(0.1, this.latest_reward))*sweepMultiplier*this.epsilon);
                     }
                 }
             } else
