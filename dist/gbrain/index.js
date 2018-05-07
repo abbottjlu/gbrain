@@ -5286,20 +5286,21 @@ var GBrainRL = exports.GBrainRL = function () {
             if (this.forward_passes > this.temporal_window) {
                 // we have enough to actually do something reasonable
                 if (this.learning === true) {
+                    this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
                     if (this.sweepEnable === true) {
                         if (this.latest_reward > 0) {
                             var otr = Math.min(1, Math.max(0, this.latest_reward));
                             var rewardMultiplier = 1.0 - otr;
-                            rewardMultiplier = Math.max(0.1, rewardMultiplier * 2);
+                            rewardMultiplier = Math.max(0.1, rewardMultiplier);
 
                             if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
 
                             this.sweep += this.sweepDir;
                             var sweepMultiplier = Math.abs(this.sweep) / this.sweepMax;
 
-                            this.epsilon = Math.max(this.epsilon_min, rewardMultiplier * sweepMultiplier);
-                        } else this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
-                    } else this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
+                            this.epsilon = Math.max(this.epsilon_min, rewardMultiplier * sweepMultiplier * this.epsilon);
+                        }
+                    }
                 } else this.epsilon = this.epsilon_test_time;
 
                 var rf = Math.random();
