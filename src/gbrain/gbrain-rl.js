@@ -261,18 +261,21 @@ export class GBrainRL {
             if(this.learning === true) {
                 if(this.sweepEnable === true) {
                     let otr = Math.min(1, Math.max(0, this.latest_reward));
-                    let rewardMultiplier = (otr > 0) ? 1.0-otr : otr*-1;
-                    rewardMultiplier = Math.min(1, Math.max(0, rewardMultiplier))*2;
-                    rewardMultiplier = Math.min(1, Math.max(0.1, rewardMultiplier));
+                    if(otr > 0) {
+                        let rewardMultiplier = 1.0-otr;
+                        rewardMultiplier = Math.max(0.1, rewardMultiplier*2);
 
-                    if(this.sweep >= this.sweepMax)
-                        this.sweepDir = -1;
-                    else if(this.sweep <= 0)
-                        this.sweepDir = 1;
+                        if(this.sweep >= this.sweepMax)
+                            this.sweepDir = -1;
+                        else if(this.sweep <= 0)
+                            this.sweepDir = 1;
 
-                    this.sweep+=this.sweepDir;
-                    let sweepMultiplier = (this.sweep/this.sweepMax);
-                    this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier);
+                        this.sweep+=this.sweepDir;
+                        let sweepMultiplier = (Math.abs(this.sweep)/this.sweepMax);
+
+                        this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier);
+                    } else
+                        this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
                 } else
                     this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
             } else
