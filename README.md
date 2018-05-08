@@ -11,7 +11,7 @@ April 2 2018
 <a href="http://stormcolour.appspot.com/gbrain/demos/gbrain-reinforcement-learning/">- ConvNet Reinforcement Learning demo integration</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/gbrain-reinforcement-learning/"><img src="demos/graph-neuronal-network/capture.jpg" style="width:150px"/></a> 
 </p>
-<h2>How this work</h2>
+<h2>How it works</h2>
 <a href="demos/_RESOURCES/gbrain.jpg"><img src="demos/_RESOURCES/gbrain.jpg" style="width:500px"/></a> 
 <p>We not need element-wise matrixs and send information to CPU on every layer result.</p>
 <p>On backpropagation the weight data is updated over the Adjacency Matrix</p>

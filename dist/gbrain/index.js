@@ -5172,7 +5172,8 @@ var GBrainRL = exports.GBrainRL = function () {
         var dragg = new _draggabilly2.default(target, {
             handle: '#elGbrainWindowHandle'
         });
-        dragg.setPosition(window.innerWidth / 2 - 500, -600);
+        target.style.left = -target.getBoundingClientRect().left + 100 + "px";
+        target.style.top = -target.getBoundingClientRect().top + 100 + "px";
 
         this.avgLossWin = new _AvgWin.AvgWin();
 
