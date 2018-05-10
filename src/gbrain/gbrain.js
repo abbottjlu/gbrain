@@ -86,7 +86,7 @@ export class GBrain {
                             let hasBias = (this.graph.layer_defs[this.graph.layerCount].activation === "relu") ? 1.0 : 0.0;
                             this.graph.layer_defs[this.graph.layerCount-1].hasBias = hasBias;
 
-                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" || this.graph.layer_defs[this.graph.layerCount+1].type === "regression") ? 1.0 : 0.0;
+                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu") ? 1.0 : 0.0;
                             //this.graph.layer_defs[this.graph.layerCount+1].hasBias = nextHasBias;
 
                             let neuronLayer = this.graph.createNeuronLayer(1, l.num_neurons, [offsetX, 0.0, 0.0, 1.0], 5.0, nextHasBias); // numX, numY, visible position
