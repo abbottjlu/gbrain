@@ -2794,7 +2794,13 @@ var Graph = exports.Graph = function () {
             var scale = jsonIn.layer_neurons_count !== undefined && jsonIn.layer_neurons_count !== null ? 0.06 - Math.sqrt(2.0 / jsonIn.layer_neurons_count) : Math.sqrt(2.0 / 50);
 
             var _activationFunc = jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null ? jsonIn.activationFunc : 1.0;
-            var _weight = jsonIn.weight !== undefined && jsonIn.weight !== null ? jsonIn.weight : Math.abs(randn(0.0, scale));
+
+            var _weight = jsonIn.weight !== undefined && jsonIn.weight !== null ? jsonIn.weight : null;
+            if (this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
+                if (_weight === null) _weight = 0.01;
+            } else {
+                if (_weight === null) _weight = Math.abs(randn(0.0, scale));
+            }
             var _linkMultiplier = jsonIn.multiplier !== undefined && jsonIn.multiplier !== null ? jsonIn.multiplier : 1.0;
 
             this.addLink({
@@ -2803,7 +2809,7 @@ var Graph = exports.Graph = function () {
                 "directed": true,
                 "showArrow": false,
                 "activationFunc": _activationFunc,
-                "weight": _weight === null && this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0 ? 1.0 : _weight,
+                "weight": _weight,
                 "linkMultiplier": _linkMultiplier,
                 "layerNum": jsonIn.layerNum });
         }
@@ -2877,10 +2883,10 @@ var Graph = exports.Graph = function () {
                     "neuronLayer": jsonIn.neuronLayerTarget,
                     "layerNum": jsonIn.layerNum,
                     "hasBias": jsonIn.hasBias,
-                    "weight": jsonIn.weights !== undefined && jsonIn.weights !== null ? we.slice(0, jsonIn.neuronLayerTarget.length) : null,
+                    "weight": jsonIn.weights !== undefined && jsonIn.weights !== null ? we.slice(0, jsonIn.neuronLayerTarget.length - jsonIn.hasBias) : null,
                     "layer_neurons_count": jsonIn.layer_neurons_count });
 
-                if (jsonIn.weights !== undefined && jsonIn.weights !== null) we = we.slice(jsonIn.neuronLayerTarget.length);
+                if (jsonIn.weights !== undefined && jsonIn.weights !== null) we = we.slice(jsonIn.neuronLayerTarget.length - jsonIn.hasBias);
             }
         }
     }, {
@@ -5635,17 +5641,18 @@ var GBrain = exports.GBrain = function () {
                             jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                         }
                     }
+                    for (var _key in jsonIn.layers[n].biases.w) {
+                        jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[_key]);
+                    }
                 } else if (jsonIn.layers[n].layer_type === "regression") {
                     jsonIn.layers[n].weights = [];
-                    for (var _key in jsonIn.layers[n].filters[0].w) {
+                    for (var _key2 in jsonIn.layers[n].filters[0].w) {
                         for (var _nb = 0; _nb < jsonIn.layers[n].filters.length; _nb++) {
-                            jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[_nb].w[_key]);
+                            jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[_nb].w[_key2]);
                         }
                     }
-                }
-                if (n > 0) {
-                    for (var _key2 in jsonIn.layers[n].biases.w) {
-                        jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[_key2]);
+                    for (var _key3 in jsonIn.layers[n].biases.w) {
+                        jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[_key3]);
                     }
                 }
             }

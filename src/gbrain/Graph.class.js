@@ -1049,7 +1049,15 @@ export class Graph {
         let scale = (jsonIn.layer_neurons_count !== undefined && jsonIn.layer_neurons_count !== null) ? (0.06-Math.sqrt(2.0/(jsonIn.layer_neurons_count))) : Math.sqrt(2.0/(50));
 
         let _activationFunc = (jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null) ? jsonIn.activationFunc : 1.0;
-        let _weight = (jsonIn.weight !== undefined && jsonIn.weight !== null) ? jsonIn.weight : Math.abs(randn(0.0, scale));
+
+        let _weight = (jsonIn.weight !== undefined && jsonIn.weight !== null) ? jsonIn.weight : null;
+        if(this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
+            if(_weight === null)
+                _weight = 0.01;
+        } else {
+            if(_weight === null)
+                _weight = Math.abs(randn(0.0, scale));
+        }
         let _linkMultiplier = (jsonIn.multiplier !== undefined && jsonIn.multiplier !== null) ? jsonIn.multiplier : 1.0;
 
         this.addLink({
@@ -1058,7 +1066,7 @@ export class Graph {
             "directed": true,
             "showArrow": false,
             "activationFunc": _activationFunc,
-            "weight": ((_weight === null && this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) ? 1.0 : _weight),
+            "weight": _weight,
             "linkMultiplier": _linkMultiplier,
             "layerNum": jsonIn.layerNum});
     };
@@ -1121,11 +1129,11 @@ export class Graph {
                                                 "neuronLayer": jsonIn.neuronLayerTarget,
                                                 "layerNum": jsonIn.layerNum,
                                                 "hasBias": jsonIn.hasBias,
-                                                "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? we.slice(0, jsonIn.neuronLayerTarget.length) : null),
+                                                "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? we.slice(0, jsonIn.neuronLayerTarget.length-jsonIn.hasBias) : null),
                                                 "layer_neurons_count": jsonIn.layer_neurons_count});
 
             if(jsonIn.weights !== undefined && jsonIn.weights !== null)
-                we = we.slice(jsonIn.neuronLayerTarget.length);
+                we = we.slice(jsonIn.neuronLayerTarget.length-jsonIn.hasBias);
         }
     };
 

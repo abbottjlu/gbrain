@@ -171,6 +171,8 @@ export class GBrain {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                     }
                 }
+                for(let key in jsonIn.layers[n].biases.w)
+                    jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
             } else if(jsonIn.layers[n].layer_type === "regression") {
                 jsonIn.layers[n].weights = [];
                 for(let key in jsonIn.layers[n].filters[0].w) {
@@ -178,8 +180,6 @@ export class GBrain {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                     }
                 }
-            }
-            if(n > 0) {
                 for(let key in jsonIn.layers[n].biases.w)
                     jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
             }
