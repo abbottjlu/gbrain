@@ -79,18 +79,22 @@ export class GBrainRL {
         this.showOutputWeighted = false;
         this.showWD = false;
 
+        this.windowSavedPosLeft = 0;
+        this.windowSavedPosTop = 0;
+        this.windowEnabled = true;
+
         let target = document.createElement("div");
         document.getElementsByTagName("body")[0].appendChild(target);
         target.style.width = "950px";
         target.innerHTML = `
-        <div style="min-width:300px; font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0px 0px 5px 0px inset; border-radius:5px;">
+        <div style="font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;">
             <div id="elGbrainWindowHandle" style="border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;	display:table;">
-                <div style="padding-left:5px; font-size:14px; color:#000; font-weight:bold;	display:table-cell;	vertical-align:middle;">GBrain</div>
+                <div style="padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;">GBrain</div>
                 <div style="width:22px;	padding:2px; display:table-cell; vertical-align:middle;">
-                    <div class="SECmenuTitleCloseImg"></div>
+                    <div id="elGbrainMinMax" style="font-weight:bold;cursor:pointer;">&#95;</div>
                 </div>
             </div>
-            <div style="border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;	cursor:default;	padding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;">
+            <div id="elGbrainContent" style="border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;	cursor:default;	padding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;">
                 <div style="display:inline-block;width:400px;">
                     Loss
                     <canvas id="elPlotLoss" style="background:#FFF"></canvas><br />
@@ -155,6 +159,28 @@ export class GBrainRL {
         });
         target.querySelector("#BTNID_FROMLSJSON").addEventListener("click", () => {
             this.fromJson(JSON.parse(localStorage.trainedModel));
+        });
+
+        target.querySelector("#elGbrainMinMax").addEventListener("click", () => {
+            if(this.windowEnabled === true) {
+                this.windowSavedPosLeft = target.style.left;
+                this.windowSavedPosTop = target.style.top;
+                target.style.position = "absolute";
+                target.style.left = "50";
+                target.style.top = "0";
+                target.style.width = "150px";
+                target.querySelector("#elGbrainContent").style.display = "none";
+                target.querySelector("#elGbrainMinMax").innerHTML = "&square;";
+                this.windowEnabled = false;
+            } else {
+                target.style.position = "relative";
+                target.style.left = this.windowSavedPosLeft;
+                target.style.top = this.windowSavedPosTop;
+                target.style.width = "950px";
+                target.querySelector("#elGbrainContent").style.display = "block";
+                target.querySelector("#elGbrainMinMax").innerHTML = "&#95;";
+                this.windowEnabled = true;
+            }
         });
 
         let dragg = new Draggabilly( target, {

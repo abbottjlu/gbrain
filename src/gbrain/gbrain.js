@@ -83,11 +83,8 @@ export class GBrain {
                             offsetX += 30.0;
                         },
                         "fc": (l) => {
-                            let hasBias = (this.graph.layer_defs[this.graph.layerCount].activation === "relu") ? 1.0 : 0.0;
-                            this.graph.layer_defs[this.graph.layerCount-1].hasBias = hasBias;
-
-                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu") ? 1.0 : 0.0;
-                            //this.graph.layer_defs[this.graph.layerCount+1].hasBias = nextHasBias;
+                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" || this.graph.layer_defs[this.graph.layerCount+1].type === "regression") ? 1.0 : 0.0;
+                            this.graph.layer_defs[this.graph.layerCount].hasBias = nextHasBias;
 
                             let neuronLayer = this.graph.createNeuronLayer(1, l.num_neurons, [offsetX, 0.0, 0.0, 1.0], 5.0, nextHasBias); // numX, numY, visible position
                             this.neuronLayers.push(neuronLayer);
@@ -174,10 +171,6 @@ export class GBrain {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                     }
                 }
-                if(n > 0) {
-                    for(let key in jsonIn.layers[n].biases.w)
-                        jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
-                }
             } else if(jsonIn.layers[n].layer_type === "regression") {
                 jsonIn.layers[n].weights = [];
                 for(let key in jsonIn.layers[n].filters[0].w) {
@@ -185,6 +178,10 @@ export class GBrain {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                     }
                 }
+            }
+            if(n > 0) {
+                for(let key in jsonIn.layers[n].biases.w)
+                    jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
             }
         }
         for(let n=0; n < jsonIn.layers.length; n++) {

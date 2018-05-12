@@ -83,13 +83,22 @@ export class KERNEL_ADJMATRIX_UPDATE {
                         weightQuadSum = 0.0;
                         weightAbsSum = 0.0;
                         
-                        float parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    
-                        float parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;
-                        float parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;
-                        float parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;
-                        float parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;
-                        float parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;
-                        float parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;
+                        float parentGOutputDerivA = 1.0;                    
+                        float parentGOutputDerivB = 1.0;
+                        float parentGOutputDerivC = 1.0;
+                        float parentGOutputDerivD = 1.0;
+                        float parentGOutputDerivE = 1.0;
+                        float parentGOutputDerivF = 1.0;
+                        float parentGOutputDerivG = 1.0;
+                        if(linkLayerNum < layerCount-2.0) {
+                            parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    
+                            parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;
+                            parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;
+                            parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;
+                            parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;
+                            parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;
+                            parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;
+                        }
                         
                         float dA = parentGDeltaA*parentGOutputDerivA;
                         float dB = parentGDeltaB*parentGOutputDerivB;

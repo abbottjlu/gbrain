@@ -239,14 +239,24 @@ export class KERNEL_DIR {
                         }
                     }
                 } else {
-                    if(currentBiasNode == 0.0) {                                     
-                        foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; ${/* SIGM= sigm(netChildInputSumA)-0.5 ; TANH=tanh(netChildInputSumA) ; RELU=max(0.0, netChildInputSumA) */''}
-                        foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;
-                        foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;
-                        foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;
-                        foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;
-                        foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;
-                        foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;
+                    if(currentBiasNode == 0.0) {
+                        if(nodeId >= `+efferentStart.toFixed(1)+`) {
+                            foutputA = netChildInputSumA;
+                            foutputB = netChildInputSumB;
+                            foutputC = netChildInputSumC;
+                            foutputD = netChildInputSumD;
+                            foutputE = netChildInputSumE;
+                            foutputF = netChildInputSumF;
+                            foutputG = netChildInputSumG;
+                        } else {                                  
+                            foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; ${/* SIGM= sigm(netChildInputSumA)-0.5 ; TANH=tanh(netChildInputSumA) ; RELU=max(0.0, netChildInputSumA) */''}
+                            foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;
+                            foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;
+                            foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;
+                            foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;
+                            foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;
+                            foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;
+                        }
                     } else {
                         foutputA = 1.0;
                         foutputB = 1.0;
