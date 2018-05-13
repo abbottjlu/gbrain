@@ -371,7 +371,13 @@ export class GBrainRL {
                 if(this.experience.length > this.start_learn_threshold) {
                     let bEntries = [];
                     let state1_entries = [];
-                    for(let n=0; n < this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size; n++) {
+
+                    let e = this.experience[this.experience.length-1];
+                    bEntries.push(e);
+                    for(let nb=0; nb < e.state1.length; nb++)
+                        state1_entries.push(e.state1[nb]);
+
+                    for(let n=1; n < this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size; n++) {
                         let e = this.experience[Math.floor(Math.random()*this.experience.length)];
                         bEntries.push(e);
                         for(let nb=0; nb < e.state1.length; nb++)

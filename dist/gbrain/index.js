@@ -5396,11 +5396,16 @@ var GBrainRL = exports.GBrainRL = function () {
                     if (this.experience.length > this.start_learn_threshold) {
                         var bEntries = [];
                         var state1_entries = [];
-                        for (var _n = 0; _n < this.gbrain.graph.batch_repeats * this.gbrain.graph.gpu_batch_size; _n++) {
-                            var _e = this.experience[Math.floor(Math.random() * this.experience.length)];
-                            bEntries.push(_e);
-                            for (var nb = 0; nb < _e.state1.length; nb++) {
-                                state1_entries.push(_e.state1[nb]);
+
+                        var _e = this.experience[this.experience.length - 1];
+                        bEntries.push(_e);
+                        for (var nb = 0; nb < _e.state1.length; nb++) {
+                            state1_entries.push(_e.state1[nb]);
+                        }for (var _n = 1; _n < this.gbrain.graph.batch_repeats * this.gbrain.graph.gpu_batch_size; _n++) {
+                            var _e2 = this.experience[Math.floor(Math.random() * this.experience.length)];
+                            bEntries.push(_e2);
+                            for (var _nb = 0; _nb < _e2.state1.length; _nb++) {
+                                state1_entries.push(_e2.state1[_nb]);
                             }
                         }
                         this.policy(state1_entries, function (maxact) {
@@ -5413,8 +5418,8 @@ var GBrainRL = exports.GBrainRL = function () {
 
                                 _this3.arrTargets.push(ystruct);
 
-                                for (var _nb = 0; _nb < bEntries[_n2].state0.length; _nb++) {
-                                    _this3.arrInputs.push(bEntries[_n2].state0[_nb]);
+                                for (var _nb2 = 0; _nb2 < bEntries[_n2].state0.length; _nb2++) {
+                                    _this3.arrInputs.push(bEntries[_n2].state0[_nb2]);
                                 }
                             }
 
