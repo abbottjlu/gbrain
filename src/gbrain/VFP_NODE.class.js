@@ -37,87 +37,80 @@ export class VFP_NODE {
        			'return vec2(ts*col, ts*row);'+
        		'}'+
        		`float getDigit(float planeId, float value) {           		
-       		    if(value > 0.0 && value < 10.0 && planeId == 1.0) return 27.0;
-       		    if(value > 10.0 && value < 100.0 && planeId == 2.0) return 27.0;
-       		    if(value > 100.0 && value < 1000.0 && planeId == 3.0) return 27.0;
-       		    if(value > 1000.0 && value < 10000.0 && planeId == 4.0) return 27.0;
-       		    if(value > 10000.0 && value < 100000.0 && planeId == 5.0) return 27.0;
+       		    if(value > 0.0 && planeId == 1.0) return 27.0;
        		    
-           		if(value < 0.0) return 14.0;
-       		    if(value < 0.0 && value > -10.0 && planeId == 2.0) return 27.0;
-       		    if(value < -10.0 && value > -100.0 && planeId == 3.0) return 27.0;
-       		    if(value < -100.0 && value > -1000.0 && planeId == 4.0) return 27.0;
-       		    if(value < -1000.0 && value > -10000.0 && planeId == 5.0) return 27.0;
-       		    if(value < -10000.0 && value > -100000.0 && planeId == 6.0) return 27.0;
+           		if(value < 0.0 && planeId == 0.0) return 14.0;
+       		    if(value < 0.0 && planeId == 2.0) return 27.0;
        		     
-       		    float val = value;                                  
+       		    float val = value;   
+       		    int offs = (val >= 0.0) ? 1 : 2;                               
                 float selectedDigit = 0.0;
                 for(int n=0; n <= 12; n++) {
                     float num = floor(val);
                     if(num == 0.0) {                                
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                         }
                     } else if(num == 1.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 10.0;
                         }                    
                     } else if(num == 2.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 20.0;
                         }                   
                     } else if(num == 3.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 30.0;
                         }                    
                     } else if(num == 4.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 40.0;
                         }                     
                     } else if(num == 5.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 50.0;
                         }                    
                     } else if(num == 6.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 60.0;
                         }                   
                     } else if(num == 7.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 70.0;
                         }                  
                     } else if(num == 8.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                             val -= 80.0;
                         }                 
                     } else if(num == 9.0) {
-                        if(n == int(planeId)) {
+                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
@@ -335,7 +328,7 @@ export class VFP_NODE {
 
                 vVertexUV = get2Dfrom1D(letId, fontImgColumns)+vec2(nodeVertexTexture.x/fontImgColumns,nodeVertexTexture.y/fontImgColumns);
                 nodeVertexPosition = vec4(nodeVertexPosition.x*0.1, nodeVertexPosition.y*0.1, nodeVertexPosition.z*0.1, 1.0);
-                currentPosition.x += -8.5;
+                currentPosition.x += 3.5;
                 currentPosition.y += 0.5;
 
                 vIsSelected = (idToDrag == data[].x) ? 1.0 : 0.0;
