@@ -16,4 +16,5 @@ April 2 2018
 <p>We not need element-wise matrixs and send information to CPU on every layer result.</p>
 <p>On backpropagation the weight data is updated over the Adjacency Matrix</p>
 <p>Activation function is included inside own neuron, avoiding to have propagate it to any reluctance layer and so we gain better performance.</p>
+<p>At this moment only linear regression with relu activation function is implemented.</p>
 <p>I have been able to learn about this algorithm especially by the Andrew NG Machine Learning course, <a href="https://github.com/karpathy/convnetjs">Karpathy's ConvNetJS</a>, <a href="https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/">the Matt Mazur paper</a>, Miguel Ángel Lobato & users that shared information on internet. Thanks.</p>
