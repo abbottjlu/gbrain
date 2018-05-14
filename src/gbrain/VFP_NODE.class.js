@@ -37,88 +37,107 @@ export class VFP_NODE {
        			'return vec2(ts*col, ts*row);'+
        		'}'+
        		`float getDigit(float planeId, float value) {           		
-       		    if(value > 0.0 && planeId == 1.0) return 27.0;
+       		    if(value >= 0.0 && planeId == 1.0) return 39.0;
        		    
-           		if(value < 0.0 && planeId == 0.0) return 14.0;
-       		    if(value < 0.0 && planeId == 2.0) return 27.0;
+           		if(value < 0.0 && planeId == 0.0) return 38.0;
+       		    if(value < 0.0 && planeId == 2.0) return 39.0;
        		     
-       		    float val = value;   
-       		    int offs = (val >= 0.0) ? 1 : 2;                               
+       		    float val = value;                         
                 float selectedDigit = 0.0;
                 for(int n=0; n <= 12; n++) {
-                    float num = floor(val);
+                    float num = floor(abs(val));
                     if(num == 0.0) {                                
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
                         }
                     } else if(num == 1.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 10.0;
+                            val += (val >= 0.0) ? -10.0 : 10.0;
                         }                    
                     } else if(num == 2.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 20.0;
+                            val += (val >= 0.0) ? -20.0 : 20.0;
                         }                   
                     } else if(num == 3.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 30.0;
+                            val += (val >= 0.0) ? -30.0 : 30.0;
                         }                    
                     } else if(num == 4.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 40.0;
+                            val += (val >= 0.0) ? -40.0 : 40.0;
                         }                     
                     } else if(num == 5.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 50.0;
+                            val += (val >= 0.0) ? -50.0 : 50.0;
                         }                    
                     } else if(num == 6.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 60.0;
+                            val += (val >= 0.0) ? -60.0 : 60.0;
                         }                   
                     } else if(num == 7.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 70.0;
+                            val += (val >= 0.0) ? -70.0 : 70.0;
                         }                  
                     } else if(num == 8.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 80.0;
+                            val += (val >= 0.0) ? -80.0 : 80.0;
                         }                 
                     } else if(num == 9.0) {
-                        if((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-offs)) {
+                        if((value >= 0.0) && ((n == 0 && n == int(planeId)) || (n > 0 && n == int(planeId)-1))) {
+                            selectedDigit = num; break;
+                        } else if((value < 0.0) && ((n == 0 && n == int(planeId)-1) || (n > 0 && n == int(planeId)-2))) {
                             selectedDigit = num; break;
                         } else {
                             val *= 10.0;
-                            val -= 90.0;
+                            val += (val >= 0.0) ? -90.0 : 90.0;
                         }               
                     }
                 }
-                selectedDigit = floor(selectedDigit);
+                selectedDigit = abs(floor(selectedDigit));
                 if(selectedDigit == 0.0) {
                     return 28.0;
                 } else if(selectedDigit == 1.0) {
