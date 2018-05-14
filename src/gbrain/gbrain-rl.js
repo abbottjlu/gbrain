@@ -78,6 +78,7 @@ export class GBrainRL {
 
         this.showOutputWeighted = false;
         this.showWD = false;
+        this.showValues = true;
 
         this.windowSavedPosLeft = 0;
         this.windowSavedPosTop = 0;
@@ -104,10 +105,11 @@ export class GBrainRL {
                     <button id="BTNID_PLOTENABLE" style="display:inline-block;">Enable plot</button>
                     <div id="el_info"></div>
                     <div>
-                        View weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
-                        View weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/>
+                        Show weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
+                        Show weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/><br />
+                        Show output values<input title="input values" type="checkbox" checked="checked" id="elem_enableShowValues"/>
                     </div>
-                    <button id="BTNID_SWEEPEPSILON" style="display:inline-block;">Sweep epsilon</button>
+                    <button id="BTNID_SWEEPEPSILON" style="display:inline-block;">Sweep*reward epsilon</button>
                     <button id="BTNID_STOP" style="display:inline-block;">Stop train</button>
                     <button id="BTNID_RESUME" style="display:inline-block;">Resume train</button>
                     <button id="BTNID_TOJSON" style="display:inline-block;">Output model in console</button>
@@ -136,6 +138,10 @@ export class GBrainRL {
         target.querySelector("#elem_enableWeightDynamics").addEventListener("click", () => {
             (this.showWD === false) ? this.gbrain.enableShowWeightDynamics() : this.gbrain.disableShowWeightDynamics();
             this.showWD = !this.showWD;
+        });
+        target.querySelector("#elem_enableShowValues").addEventListener("click", () => {
+            (this.showValues === false) ? this.gbrain.enableShowValues() : this.gbrain.disableShowValues();
+            this.showValues = !this.showValues;
         });
 
         target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", () => {

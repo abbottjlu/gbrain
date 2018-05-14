@@ -36,6 +36,118 @@ export class VFP_NODE {
        			'float ts = 1.0/columns;'+
        			'return vec2(ts*col, ts*row);'+
        		'}'+
+       		`float getDigit(float planeId, float value) {           		
+       		    if(value > 0.0 && value < 10.0 && planeId == 1.0) return 27.0;
+       		    if(value > 10.0 && value < 100.0 && planeId == 2.0) return 27.0;
+       		    if(value > 100.0 && value < 1000.0 && planeId == 3.0) return 27.0;
+       		    if(value > 1000.0 && value < 10000.0 && planeId == 4.0) return 27.0;
+       		    if(value > 10000.0 && value < 100000.0 && planeId == 5.0) return 27.0;
+       		    
+           		if(value < 0.0) return 14.0;
+       		    if(value < 0.0 && value > -10.0 && planeId == 2.0) return 27.0;
+       		    if(value < -10.0 && value > -100.0 && planeId == 3.0) return 27.0;
+       		    if(value < -100.0 && value > -1000.0 && planeId == 4.0) return 27.0;
+       		    if(value < -1000.0 && value > -10000.0 && planeId == 5.0) return 27.0;
+       		    if(value < -10000.0 && value > -100000.0 && planeId == 6.0) return 27.0;
+       		     
+       		    float val = value;                                  
+                float selectedDigit = 0.0;
+                for(int n=0; n <= 12; n++) {
+                    float num = floor(val);
+                    if(num == 0.0) {                                
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                        }
+                    } else if(num == 1.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 10.0;
+                        }                    
+                    } else if(num == 2.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 20.0;
+                        }                   
+                    } else if(num == 3.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 30.0;
+                        }                    
+                    } else if(num == 4.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 40.0;
+                        }                     
+                    } else if(num == 5.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 50.0;
+                        }                    
+                    } else if(num == 6.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 60.0;
+                        }                   
+                    } else if(num == 7.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 70.0;
+                        }                  
+                    } else if(num == 8.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 80.0;
+                        }                 
+                    } else if(num == 9.0) {
+                        if(n == int(planeId)) {
+                            selectedDigit = num; break;
+                        } else {
+                            val *= 10.0;
+                            val -= 90.0;
+                        }               
+                    }
+                }
+                selectedDigit = floor(selectedDigit);
+                if(selectedDigit == 0.0) {
+                    return 28.0;
+                } else if(selectedDigit == 1.0) {
+                    return 29.0;
+                } else if(selectedDigit == 2.0) {
+                    return 30.0;
+                } else if(selectedDigit == 3.0) {
+                    return 31.0;
+                } else if(selectedDigit == 4.0) {
+                    return 32.0;
+                } else if(selectedDigit == 5.0) {
+                    return 33.0;
+                } else if(selectedDigit == 6.0) {
+                    return 34.0;
+                } else if(selectedDigit == 7.0) {
+                    return 35.0;
+                } else if(selectedDigit == 8.0) {
+                    return 36.0;
+                } else if(selectedDigit == 9.0) {
+                    return 37.0;
+                }
+            }`+
        		 'mat4 lookAt(vec3 eye, vec3 center, vec3 up) {'+
        		     'vec3 zaxis = normalize(center - eye);'+
        		     'vec3 xaxis = normalize(cross(up, zaxis));'+
@@ -214,14 +326,17 @@ export class VFP_NODE {
                 
                 vNodeIdOpposite = nodeIdOpposite;
             }
-            if(isNodeText == 1.0) {            
-                float letId = letterId[];
+            if(isNodeText == 1.0) {
+                float foutput = dataB[xGeometryNode].z;
+                
+                float letId = (showValues == 1.0) ? getDigit(data[].y, foutput) : letterId[];
                 mat4 mm = rotationMatrix(vec3(1.0,0.0,0.0), (3.1416/2.0)*3.0);
                 nodepos = nodepos*mm;
 
                 vVertexUV = get2Dfrom1D(letId, fontImgColumns)+vec2(nodeVertexTexture.x/fontImgColumns,nodeVertexTexture.y/fontImgColumns);
                 nodeVertexPosition = vec4(nodeVertexPosition.x*0.1, nodeVertexPosition.y*0.1, nodeVertexPosition.z*0.1, 1.0);
-                currentPosition.z += 2.5;
+                currentPosition.x += -8.5;
+                currentPosition.y += 0.5;
 
                 vIsSelected = (idToDrag == data[].x) ? 1.0 : 0.0;
                 vIsHover = (idToHover == data[].x) ? 1.0 : 0.0;
