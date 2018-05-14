@@ -455,6 +455,7 @@ export class Graph {
             'float updateTheta': () => {return null;},
             'float multiplyOutput': () => {return null;},
             'float viewNeuronDynamics': () => {return null;},
+            'float showValues': () => {return null;},
             'float only2d': () => {return null;},
             'float nodeImgColumns': () => {return null;},
             'float fontImgColumns': () => {return null;},
@@ -1858,7 +1859,7 @@ export class Graph {
             for(let n=0; n < this.mesh_nodesText.vertexArray.length/4; n++) {
                 let idxVertex = n*4;
 
-                this.arrayNodeTextData.push(jsonIn.nodeId, 0.0, 0.0, 0.0);
+                this.arrayNodeTextData.push(jsonIn.nodeId, i, 0.0, 0.0);
                 this.arrayNodeTextPosXYZW.push(0.0, 0.0, 0.0, 1.0);
                 this.arrayNodeTextVertexPos.push(this.mesh_nodesText.vertexArray[idxVertex]+(i*5), this.mesh_nodesText.vertexArray[idxVertex+1], this.mesh_nodesText.vertexArray[idxVertex+2], 1.0);
                 this.arrayNodeTextVertexNormal.push(this.mesh_nodesText.normalArray[idxVertex], this.mesh_nodesText.normalArray[idxVertex+1], this.mesh_nodesText.normalArray[idxVertex+2], 1.0);
@@ -2295,6 +2296,7 @@ export class Graph {
 
     updateNodesText() {
         this.comp_renderer_nodesText.setArg("data", () => {return this.arrayNodeTextData;});
+        this.comp_renderer_nodesText.getComponentBufferArg("dataB", this.comp_renderer_nodes);
         this.comp_renderer_nodesText.getComponentBufferArg("posXYZW", this.comp_renderer_nodes);
 
         this.comp_renderer_nodesText.setArg("nodeVertexPos", () => {return this.arrayNodeTextVertexPos;});
@@ -2315,6 +2317,7 @@ export class Graph {
         this.comp_renderer_nodesText.setArg("isNodeText", () => {return 1;});
         this.comp_renderer_nodesText.setArg("bufferNodesWidth", () => {return this.comp_renderer_nodes.getBuffers()["posXYZW"].W;});
         this.comp_renderer_nodesText.setArg("bufferTextsWidth", () => {return this.comp_renderer_nodesText.getBuffers()["data"].W;});
+        this.comp_renderer_nodesText.setArg("showValues", () => {return 1.0;});
 
         for(let argNameKey in this._customArgs) {
             let expl = this._customArgs[argNameKey].arg.split("*");
@@ -2523,6 +2526,14 @@ export class Graph {
 
     disableShowWeightDynamics() {
         this.comp_renderer_nodes.setArg("viewNeuronDynamics", () => {return 0.0;});
+    };
+
+    enableShowValues() {
+        this.comp_renderer_nodesText.setArg("showValues", () => {return 1.0;});
+    };
+
+    disableShowValues() {
+        this.comp_renderer_nodesText.setArg("showValues", () => {return 0.0;});
     };
 }
 global.Graph = Graph;

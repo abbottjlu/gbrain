@@ -253,6 +253,14 @@ export class GBrain {
         this.graph.disableShowWeightDynamics();
     };
 
+    enableShowValues() {
+        this.graph.enableShowValues();
+    };
+
+    disableShowValues() {
+        this.graph.disableShowValues();
+    };
+
     tick() {
         this.project.getActiveStage().tick();
     };
