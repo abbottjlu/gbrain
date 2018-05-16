@@ -5308,15 +5308,16 @@ var GBrainRL = exports.GBrainRL = function () {
     }, {
         key: "pushWindow",
         value: function pushWindow(input_array, net_input, action) {
-            // remember the state and action we took for backward pass
-            this.state_window.shift();
-            this.state_window.push(input_array);
+            if (this.learning === true) {
+                this.state_window.shift();
+                this.state_window.push(input_array);
 
-            this.net_window.shift();
-            this.net_window.push(net_input);
+                this.net_window.shift();
+                this.net_window.push(net_input);
 
-            this.action_window.shift();
-            this.action_window.push(action);
+                this.action_window.shift();
+                this.action_window.push(action);
+            }
         }
     }, {
         key: "stopLearning",
@@ -5392,7 +5393,7 @@ var GBrainRL = exports.GBrainRL = function () {
             this.clock++;
             this.el_info.innerHTML = "epsilon: " + this.epsilon + "<br />" + "reward: " + this.latest_reward + "<br />" + "age: " + this.age + "<br />" + "average Q-learning loss: " + this.loss + "<br />" + "current learning rate: " + this.gbrain.currentLearningRate;
 
-            if (this.learning === false || this.forward_passes === 0) {
+            if (this.learning === false) {
                 this.onLearned();
             } else {
                 //this.average_reward_window.add(reward); TODO
