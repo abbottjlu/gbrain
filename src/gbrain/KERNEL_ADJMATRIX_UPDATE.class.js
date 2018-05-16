@@ -79,10 +79,7 @@ export class KERNEL_ADJMATRIX_UPDATE {
                 float gpu_batch_size = 7.0;     
                 
                 if(currentTrainLayer == linkLayerNum) {
-                    if(weightQuadSum != 0.0) {
-                        weightQuadSum = 0.0;
-                        weightAbsSum = 0.0;
-                        
+                    if(weightQuadSum != 0.0) {                        
                         float parentGOutputDerivA = 1.0;                    
                         float parentGOutputDerivB = 1.0;
                         float parentGOutputDerivC = 1.0;
@@ -117,26 +114,18 @@ export class KERNEL_ADJMATRIX_UPDATE {
                         wT += dF*childGOutputF;
                         wT += dG*childGOutputG;
                         wT /= (gpu_batch_size*batch_repeats);
-                        
-                        if(childBiasNode == 0.0) {
-                            costA = dA*linkWeight;
-                            costB = dB*linkWeight;
-                            costC = dC*linkWeight;
-                            costD = dD*linkWeight;
-                            costE = dE*linkWeight;
-                            costF = dF*linkWeight;
-                            costG = dG*linkWeight;
-                        } else {
-                            costA = dA;
-                            costB = dB;
-                            costC = dC;
-                            costD = dD;
-                            costE = dE;
-                            costF = dF;
-                            costG = dG;
-                        }
+                    
+                        costA = dA*linkWeight;
+                        costB = dB*linkWeight;
+                        costC = dC*linkWeight;
+                        costD = dD*linkWeight;
+                        costE = dE*linkWeight;
+                        costF = dF*linkWeight;
+                        costG = dG*linkWeight;
                         
                         linkWeight += -lr*((weightQuadSum*l2_decay) + (weightAbsSum*l1_decay) + wT);
+                        weightQuadSum = 0.0;
+                        weightAbsSum = 0.0;                        
                     } else {
                         weightQuadSum += linkWeight*linkWeight;
                         weightAbsSum += abs(linkWeight);

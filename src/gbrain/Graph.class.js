@@ -1047,17 +1047,17 @@ export class Graph {
             return u*c;
         };
         let randn = (mu, std) => { return mu+gaussRandom()*std; };
-        let scale = (jsonIn.layer_neurons_count !== undefined && jsonIn.layer_neurons_count !== null) ? (0.06-Math.sqrt(2.0/(jsonIn.layer_neurons_count))) : Math.sqrt(2.0/(50));
+        let scale = (jsonIn.layer_neurons_count !== undefined && jsonIn.layer_neurons_count !== null) ? (0.14-Math.sqrt(2.0/(jsonIn.layer_neurons_count))) : Math.sqrt(2.0/(50));
 
         let _activationFunc = (jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null) ? jsonIn.activationFunc : 1.0;
 
         let _weight = (jsonIn.weight !== undefined && jsonIn.weight !== null) ? jsonIn.weight : null;
         if(this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
             if(_weight === null)
-                _weight = 0.01;
+                _weight = 0.0;
         } else {
             if(_weight === null)
-                _weight = Math.abs(randn(0.0, scale));
+                _weight = randn(0.0, scale);
         }
         let _linkMultiplier = (jsonIn.multiplier !== undefined && jsonIn.multiplier !== null) ? jsonIn.multiplier : 1.0;
 
@@ -2007,7 +2007,11 @@ export class Graph {
             jsonIn.target_layoutNodeArgumentData = this._nodesByName[jsonIn.target].layoutNodeArgumentData;
 
             jsonIn.activationFunc = (jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null) ? jsonIn.activationFunc : 1.0;
-            jsonIn.weight = (jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor===String) ? Math.random() : (jsonIn.weight||1.0);
+            if(jsonIn.weight !== undefined && jsonIn.weight !== null) {
+                if(jsonIn.weight.constructor===String)
+                    jsonIn.weight = Math.random();
+            } else
+                jsonIn.weight = Math.random();
             jsonIn.linkMultiplier = (jsonIn.linkMultiplier !== undefined && jsonIn.linkMultiplier !== null) ? jsonIn.linkMultiplier : 1.0;
 
             let repeatId = 1;

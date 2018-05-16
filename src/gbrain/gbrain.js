@@ -96,7 +96,7 @@ export class GBrain {
                                                                                 "neuronLayer": this.neuronLayers[this.neuronLayers.length-1],
                                                                                 "activationFunc": 0,
                                                                                 "weight": ((l.weights !== undefined && l.weights !== null) ? we.slice(0, l.num_neurons) : null),
-                                                                                "layer_neurons_count": this.inputCount*this.neuronLayers[this.neuronLayers.length-1].length,
+                                                                                "layer_neurons_count": this.inputCount,
                                                                                 "multiplier": 1,
                                                                                 "layerNum": this.graph.layerCount-1,
                                                                                 "hasBias": nextHasBias});
@@ -115,7 +115,7 @@ export class GBrain {
                                 this.graph.connectNeuronLayerWithNeuronLayer({  "neuronLayerOrigin": this.neuronLayers[this.neuronLayers.length-2],
                                                                                 "neuronLayerTarget": this.neuronLayers[this.neuronLayers.length-1],
                                                                                 "weights": ((l.weights !== undefined && l.weights !== null) ? l.weights : null),
-                                                                                "layer_neurons_count": this.neuronLayers[this.neuronLayers.length-2].length*this.neuronLayers[this.neuronLayers.length-1].length,
+                                                                                "layer_neurons_count": this.neuronLayers[this.neuronLayers.length-1].length,
                                                                                 "layerNum": this.graph.layerCount-1,
                                                                                 "hasBias": nextHasBias}); // TODO l.activation
 
