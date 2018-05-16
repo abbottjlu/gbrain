@@ -2800,7 +2800,7 @@ var Graph = exports.Graph = function () {
 
             var _weight = jsonIn.weight !== undefined && jsonIn.weight !== null ? jsonIn.weight : null;
             if (this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
-                if (_weight === null) _weight = 0.0;
+                if (_weight === null) _weight = 0.01;
             } else {
                 if (_weight === null) _weight = randn(0.0, scale);
             }
