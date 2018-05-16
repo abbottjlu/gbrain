@@ -123,7 +123,7 @@ export class KERNEL_ADJMATRIX_UPDATE {
                         costF = dF*linkWeight;
                         costG = dG*linkWeight;
                         
-                        linkWeight += -lr*((weightQuadSum*l2_decay) + (weightAbsSum*l1_decay) + wT);
+                        linkWeight += -lr*(${/* (weightQuadSum*l2_decay) + (weightAbsSum*l1_decay) + */''} wT);
                         weightQuadSum = 0.0;
                         weightAbsSum = 0.0;                        
                     } else {
