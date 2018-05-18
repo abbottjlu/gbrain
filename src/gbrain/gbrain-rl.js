@@ -43,10 +43,14 @@ export class GBrainRL {
         this.net_inputs = this.num_inputs * this.temporal_window + this.num_actions * this.temporal_window + this.num_inputs;
         this.window_size = Math.max(this.temporal_window, 2);
 
-        this.state_window = new Array(this.window_size);
-        this.action_window = new Array(this.window_size);
-        this.reward_window = new Array(this.window_size);
-        this.net_window = new Array(this.window_size);
+        this.windows = [];
+        for(let n=0; n < 7; n++) {
+            this.windows[n] = {};
+            this.windows[n].state_window = new Array(this.window_size);
+            this.windows[n].action_window = new Array(this.window_size);
+            this.windows[n].reward_window = new Array(this.window_size);
+            this.windows[n].net_window = new Array(this.window_size);
+        }
 
         this.experience = [];
 
@@ -225,7 +229,7 @@ export class GBrainRL {
         return this.gbrain.toJson();
     };
 
-    getNetInput(xt) {
+    getNetInput(iId, xt) {
         // return s = (x,a,x,a,x,a,xt) state vector.
         // It's a concatenation of last window_size (x,a) pairs and current state x
         let w = [];
@@ -234,13 +238,13 @@ export class GBrainRL {
         let n = this.window_size;
         for(let k=0; k < this.temporal_window; k++) {
             // state
-            w = w.concat(this.state_window[n-1-k]);
+            w = w.concat(this.windows[iId].state_window[n-1-k]);
             // action, encoded as 1-of-k indicator vector. We scale it up a bit because
             // we dont want weight regularization to undervalue this information, as it only exists once
             let action1ofk = new Array(this.num_actions);
             for(let q=0; q < this.num_actions; q++)
                 action1ofk[q] = 0.0;
-            action1ofk[this.action_window[n-1-k]] = 1.0/* *this.num_inputs*/;
+            action1ofk[this.windows[iId].action_window[n-1-k]] = 1.0/* *this.num_inputs*/;
             w = w.concat(action1ofk);
         }
         return w;
@@ -258,17 +262,15 @@ export class GBrainRL {
         });
     };
 
-    pushWindow(input_array, net_input, action) {
-        if(this.learning === true) {
-            this.state_window.shift();
-            this.state_window.push(input_array);
+    pushWindow(iId, input_array, net_input, action) {
+        this.windows[iId].state_window.shift();
+        this.windows[iId].state_window.push(input_array);
 
-            this.net_window.shift();
-            this.net_window.push(net_input);
+        this.windows[iId].net_window.shift();
+        this.windows[iId].net_window.push(net_input);
 
-            this.action_window.shift();
-            this.action_window.push(action);
-        }
+        this.windows[iId].action_window.shift();
+        this.windows[iId].action_window.push(action);
     };
 
     stopLearning() {
@@ -279,56 +281,76 @@ export class GBrainRL {
         this.learning = true;
         this.forward_passes = 0;
 
-        this.state_window = new Array(this.window_size);
-        this.action_window = new Array(this.window_size);
-        this.reward_window = new Array(this.window_size);
-        this.net_window = new Array(this.window_size);
+        for(let n=0; n < 7; n++) {
+            this.windows[n] = {};
+            this.windows[n].state_window = new Array(this.window_size);
+            this.windows[n].action_window = new Array(this.window_size);
+            this.windows[n].reward_window = new Array(this.window_size);
+            this.windows[n].net_window = new Array(this.window_size);
+        }
     };
 
     forward(input_array, onAction) {
+        if(this.learning === true) {
+            this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
+            if(this.sweepEnable === true) {
+                if(this.sweep >= this.sweepMax)
+                    this.sweepDir = -1;
+                else if(this.sweep <= 0)
+                    this.sweepDir = 1;
+                this.sweep+=this.sweepDir;
+                if(this.latest_reward > 0) {
+                    let rewardMultiplier = 1.0-Math.min(1, Math.max(0.0, this.latest_reward*2));
+                    let sweepMultiplier = (Math.abs(this.sweep)/this.sweepMax);
+                    this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier*this.epsilon);
+                }
+            }
+        } else
+            this.epsilon = this.epsilon_test_time;
+
         this.forward_passes++;
         this.last_input_array = input_array;
 
-        let action = null;
-        let net_input = this.getNetInput(input_array);
-        if(this.forward_passes > this.temporal_window) { // we have enough to actually do something reasonable
-            if(this.learning === true) {
-                this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
-                if(this.sweepEnable === true) {
-                    if(this.sweep >= this.sweepMax)
-                        this.sweepDir = -1;
-                    else if(this.sweep <= 0)
-                        this.sweepDir = 1;
-                    this.sweep+=this.sweepDir;
-                    if(this.latest_reward > 0) {
-                        let rewardMultiplier = 1.0-Math.min(1, Math.max(0.0, this.latest_reward*2));
-                        let sweepMultiplier = (Math.abs(this.sweep)/this.sweepMax);
-                        this.epsilon = Math.max(this.epsilon_min, rewardMultiplier*sweepMultiplier*this.epsilon);
-                    }
-                }
-            } else
-                this.epsilon = this.epsilon_test_time;
+        let entNetInput = [];
+        let windowsTemp = [];
+        for(let n=0; n < input_array.length; n++) {
+            windowsTemp[n] = {  input_array: input_array[n],
+                                net_input: null,
+                                action: null};
+            windowsTemp[n].net_input = this.getNetInput(n, windowsTemp[n].input_array);
 
+            for(let nb=0; nb < windowsTemp[n].net_input.length; nb++)
+                entNetInput.push(windowsTemp[n].net_input[nb]);
+        }
+        if(this.forward_passes > this.temporal_window) {
             let rf = Math.random();
             if(rf < this.epsilon) {
-                // choose a random action with epsilon probability
-                action = this.random_action();
-                this.pushWindow(input_array, net_input, action);
-                onAction(action);
+                let retActs = [];
+                for(let n=0; n < input_array.length; n++) {
+                    windowsTemp[n].action = this.random_action();
+                    this.pushWindow(n, windowsTemp[n].input_array, windowsTemp[n].net_input, windowsTemp[n].action);
+                    retActs.push(windowsTemp[n].action);
+                }
+                onAction(retActs);
             } else {
-                // otherwise use our policy to make decision
-                this.policy(net_input, (maxact) => {
-                    this.pushWindow(input_array, net_input, maxact[0].action);
-                    onAction(maxact[0].action);
+                this.policy(entNetInput, (maxact) => {
+                    let retActs = [];
+                    for(let n=0; n < input_array.length; n++) {
+                        windowsTemp[n].action = maxact[n].action;
+                        this.pushWindow(n, windowsTemp[n].input_array, windowsTemp[n].net_input, windowsTemp[n].action);
+                        retActs.push(windowsTemp[n].action);
+                    }
+                    onAction(retActs);
                 });
             }
         } else {
-            // pathological case that happens first few iterations
-            // before we accumulate window_size inputs
-            //net_input = [];
-            action = this.random_action();
-            this.pushWindow(input_array, net_input, action);
-            onAction(action);
+            let retActs = [];
+            for(let n=0; n < input_array.length; n++) {
+                windowsTemp[n].action = this.random_action();
+                this.pushWindow(n, windowsTemp[n].input_array, windowsTemp[n].net_input, windowsTemp[n].action);
+                retActs.push(windowsTemp[n].action);
+            }
+            onAction(retActs);
         }
     };
 
@@ -347,8 +369,8 @@ export class GBrainRL {
             this.onLearned();
         } else {
             //this.average_reward_window.add(reward); TODO
-            this.reward_window.shift();
-            this.reward_window.push(reward);
+            this.windows[0].reward_window.shift();
+            this.windows[0].reward_window.push(reward);
 
             if(this.ageEpoch === this.experience_size) {
                 this.epoch++;
@@ -364,10 +386,10 @@ export class GBrainRL {
             // (given that an appropriate number of state measurements already exist, of course)
             if(this.forward_passes > (this.temporal_window+1)) {
                 let n = this.window_size;
-                let e = {   "state0": this.net_window[n-2],
-                            "action0": this.action_window[n-2],
-                            "reward0": this.reward_window[n-2],
-                            "state1": this.net_window[n-1]};
+                let e = {   "state0": this.windows[0].net_window[n-2],
+                            "action0": this.windows[0].action_window[n-2],
+                            "reward0": this.windows[0].reward_window[n-2],
+                            "state1": this.windows[0].net_window[n-1]};
                 if(this.experience.length < this.experience_size)
                     this.experience.push(e);
                 else {

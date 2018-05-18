@@ -5119,10 +5119,14 @@ var GBrainRL = exports.GBrainRL = function () {
         this.net_inputs = this.num_inputs * this.temporal_window + this.num_actions * this.temporal_window + this.num_inputs;
         this.window_size = Math.max(this.temporal_window, 2);
 
-        this.state_window = new Array(this.window_size);
-        this.action_window = new Array(this.window_size);
-        this.reward_window = new Array(this.window_size);
-        this.net_window = new Array(this.window_size);
+        this.windows = [];
+        for (var n = 0; n < 7; n++) {
+            this.windows[n] = {};
+            this.windows[n].state_window = new Array(this.window_size);
+            this.windows[n].action_window = new Array(this.window_size);
+            this.windows[n].reward_window = new Array(this.window_size);
+            this.windows[n].net_window = new Array(this.window_size);
+        }
 
         this.experience = [];
 
@@ -5271,7 +5275,7 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "getNetInput",
-        value: function getNetInput(xt) {
+        value: function getNetInput(iId, xt) {
             // return s = (x,a,x,a,x,a,xt) state vector.
             // It's a concatenation of last window_size (x,a) pairs and current state x
             var w = [];
@@ -5280,13 +5284,13 @@ var GBrainRL = exports.GBrainRL = function () {
             var n = this.window_size;
             for (var k = 0; k < this.temporal_window; k++) {
                 // state
-                w = w.concat(this.state_window[n - 1 - k]);
+                w = w.concat(this.windows[iId].state_window[n - 1 - k]);
                 // action, encoded as 1-of-k indicator vector. We scale it up a bit because
                 // we dont want weight regularization to undervalue this information, as it only exists once
                 var action1ofk = new Array(this.num_actions);
                 for (var q = 0; q < this.num_actions; q++) {
                     action1ofk[q] = 0.0;
-                }action1ofk[this.action_window[n - 1 - k]] = 1.0 /* *this.num_inputs*/;
+                }action1ofk[this.windows[iId].action_window[n - 1 - k]] = 1.0 /* *this.num_inputs*/;
                 w = w.concat(action1ofk);
             }
             return w;
@@ -5307,17 +5311,15 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "pushWindow",
-        value: function pushWindow(input_array, net_input, action) {
-            if (this.learning === true) {
-                this.state_window.shift();
-                this.state_window.push(input_array);
+        value: function pushWindow(iId, input_array, net_input, action) {
+            this.windows[iId].state_window.shift();
+            this.windows[iId].state_window.push(input_array);
 
-                this.net_window.shift();
-                this.net_window.push(net_input);
+            this.windows[iId].net_window.shift();
+            this.windows[iId].net_window.push(net_input);
 
-                this.action_window.shift();
-                this.action_window.push(action);
-            }
+            this.windows[iId].action_window.shift();
+            this.windows[iId].action_window.push(action);
         }
     }, {
         key: "stopLearning",
@@ -5330,56 +5332,76 @@ var GBrainRL = exports.GBrainRL = function () {
             this.learning = true;
             this.forward_passes = 0;
 
-            this.state_window = new Array(this.window_size);
-            this.action_window = new Array(this.window_size);
-            this.reward_window = new Array(this.window_size);
-            this.net_window = new Array(this.window_size);
+            for (var n = 0; n < 7; n++) {
+                this.windows[n] = {};
+                this.windows[n].state_window = new Array(this.window_size);
+                this.windows[n].action_window = new Array(this.window_size);
+                this.windows[n].reward_window = new Array(this.window_size);
+                this.windows[n].net_window = new Array(this.window_size);
+            }
         }
     }, {
         key: "forward",
         value: function forward(input_array, onAction) {
             var _this2 = this;
 
+            if (this.learning === true) {
+                this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
+                if (this.sweepEnable === true) {
+                    if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
+                    this.sweep += this.sweepDir;
+                    if (this.latest_reward > 0) {
+                        var rewardMultiplier = 1.0 - Math.min(1, Math.max(0.0, this.latest_reward * 2));
+                        var sweepMultiplier = Math.abs(this.sweep) / this.sweepMax;
+                        this.epsilon = Math.max(this.epsilon_min, rewardMultiplier * sweepMultiplier * this.epsilon);
+                    }
+                }
+            } else this.epsilon = this.epsilon_test_time;
+
             this.forward_passes++;
             this.last_input_array = input_array;
 
-            var action = null;
-            var net_input = this.getNetInput(input_array);
-            if (this.forward_passes > this.temporal_window) {
-                // we have enough to actually do something reasonable
-                if (this.learning === true) {
-                    this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
-                    if (this.sweepEnable === true) {
-                        if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
-                        this.sweep += this.sweepDir;
-                        if (this.latest_reward > 0) {
-                            var rewardMultiplier = 1.0 - Math.min(1, Math.max(0.0, this.latest_reward * 2));
-                            var sweepMultiplier = Math.abs(this.sweep) / this.sweepMax;
-                            this.epsilon = Math.max(this.epsilon_min, rewardMultiplier * sweepMultiplier * this.epsilon);
-                        }
-                    }
-                } else this.epsilon = this.epsilon_test_time;
+            var entNetInput = [];
+            var windowsTemp = [];
+            for (var n = 0; n < input_array.length; n++) {
+                windowsTemp[n] = { input_array: input_array[n],
+                    net_input: null,
+                    action: null };
+                windowsTemp[n].net_input = this.getNetInput(n, windowsTemp[n].input_array);
 
+                for (var nb = 0; nb < windowsTemp[n].net_input.length; nb++) {
+                    entNetInput.push(windowsTemp[n].net_input[nb]);
+                }
+            }
+            if (this.forward_passes > this.temporal_window) {
                 var rf = Math.random();
                 if (rf < this.epsilon) {
-                    // choose a random action with epsilon probability
-                    action = this.random_action();
-                    this.pushWindow(input_array, net_input, action);
-                    onAction(action);
+                    var retActs = [];
+                    for (var _n = 0; _n < input_array.length; _n++) {
+                        windowsTemp[_n].action = this.random_action();
+                        this.pushWindow(_n, windowsTemp[_n].input_array, windowsTemp[_n].net_input, windowsTemp[_n].action);
+                        retActs.push(windowsTemp[_n].action);
+                    }
+                    onAction(retActs);
                 } else {
-                    // otherwise use our policy to make decision
-                    this.policy(net_input, function (maxact) {
-                        _this2.pushWindow(input_array, net_input, maxact[0].action);
-                        onAction(maxact[0].action);
+                    this.policy(entNetInput, function (maxact) {
+                        var retActs = [];
+                        for (var _n2 = 0; _n2 < input_array.length; _n2++) {
+                            windowsTemp[_n2].action = maxact[_n2].action;
+                            _this2.pushWindow(_n2, windowsTemp[_n2].input_array, windowsTemp[_n2].net_input, windowsTemp[_n2].action);
+                            retActs.push(windowsTemp[_n2].action);
+                        }
+                        onAction(retActs);
                     });
                 }
             } else {
-                // pathological case that happens first few iterations
-                // before we accumulate window_size inputs
-                //net_input = [];
-                action = this.random_action();
-                this.pushWindow(input_array, net_input, action);
-                onAction(action);
+                var _retActs = [];
+                for (var _n3 = 0; _n3 < input_array.length; _n3++) {
+                    windowsTemp[_n3].action = this.random_action();
+                    this.pushWindow(_n3, windowsTemp[_n3].input_array, windowsTemp[_n3].net_input, windowsTemp[_n3].action);
+                    _retActs.push(windowsTemp[_n3].action);
+                }
+                onAction(_retActs);
             }
         }
     }, {
@@ -5397,8 +5419,8 @@ var GBrainRL = exports.GBrainRL = function () {
                 this.onLearned();
             } else {
                 //this.average_reward_window.add(reward); TODO
-                this.reward_window.shift();
-                this.reward_window.push(reward);
+                this.windows[0].reward_window.shift();
+                this.windows[0].reward_window.push(reward);
 
                 if (this.ageEpoch === this.experience_size) {
                     this.epoch++;
@@ -5413,10 +5435,10 @@ var GBrainRL = exports.GBrainRL = function () {
                 // (given that an appropriate number of state measurements already exist, of course)
                 if (this.forward_passes > this.temporal_window + 1) {
                     var n = this.window_size;
-                    var e = { "state0": this.net_window[n - 2],
-                        "action0": this.action_window[n - 2],
-                        "reward0": this.reward_window[n - 2],
-                        "state1": this.net_window[n - 1] };
+                    var e = { "state0": this.windows[0].net_window[n - 2],
+                        "action0": this.windows[0].action_window[n - 2],
+                        "reward0": this.windows[0].reward_window[n - 2],
+                        "state1": this.windows[0].net_window[n - 1] };
                     if (this.experience.length < this.experience_size) this.experience.push(e);else {
                         var r = Math.floor(Math.random() * this.experience.length);
                         this.experience[r] = e;
@@ -5430,7 +5452,7 @@ var GBrainRL = exports.GBrainRL = function () {
                         bEntries.push(_e);
                         for (var nb = 0; nb < _e.state1.length; nb++) {
                             state1_entries.push(_e.state1[nb]);
-                        }for (var _n = 1; _n < this.gbrain.graph.batch_repeats * this.gbrain.graph.gpu_batch_size; _n++) {
+                        }for (var _n4 = 1; _n4 < this.gbrain.graph.batch_repeats * this.gbrain.graph.gpu_batch_size; _n4++) {
                             var _e2 = this.experience[Math.floor(Math.random() * this.experience.length)];
                             bEntries.push(_e2);
                             for (var _nb = 0; _nb < _e2.state1.length; _nb++) {
@@ -5441,14 +5463,14 @@ var GBrainRL = exports.GBrainRL = function () {
                             _this3.arrInputs = [];
                             _this3.arrTargets = [];
 
-                            for (var _n2 = 0; _n2 < _this3.gbrain.graph.batch_repeats * _this3.gbrain.graph.gpu_batch_size; _n2++) {
-                                var _r = bEntries[_n2].reward0 + _this3.gamma * maxact[_n2].value;
-                                var ystruct = { dim: bEntries[_n2].action0, val: _r };
+                            for (var _n5 = 0; _n5 < _this3.gbrain.graph.batch_repeats * _this3.gbrain.graph.gpu_batch_size; _n5++) {
+                                var _r = bEntries[_n5].reward0 + _this3.gamma * maxact[_n5].value;
+                                var ystruct = { dim: bEntries[_n5].action0, val: _r };
 
                                 _this3.arrTargets.push(ystruct);
 
-                                for (var _nb2 = 0; _nb2 < bEntries[_n2].state0.length; _nb2++) {
-                                    _this3.arrInputs.push(bEntries[_n2].state0[_nb2]);
+                                for (var _nb2 = 0; _nb2 < bEntries[_n5].state0.length; _nb2++) {
+                                    _this3.arrInputs.push(bEntries[_n5].state0[_nb2]);
                                 }
                             }
 
