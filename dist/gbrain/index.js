@@ -1592,7 +1592,7 @@ var Graph = exports.Graph = function () {
 
         this.layout = null;
 
-        this.currHiddenNeuron = 0;
+        this.currentNeuron = 0;
         this.nodSep = 5.0;
 
         //**************************************************
@@ -2639,19 +2639,6 @@ var Graph = exports.Graph = function () {
                 "biasNeuron": biasNeuron !== undefined && biasNeuron !== null ? biasNeuron : 0.0 });
         }
     }, {
-        key: "addAfferentNeuron",
-
-
-        /**
-         * @param {String} neuronName
-         * @param {Array<number>} [destination=[0.0, 0.0, 0.0, 1.0]]
-         */
-        value: function addAfferentNeuron(neuronName, destination) {
-            this.afferentNodesCount++;
-            this.afferentNeuron.push(neuronName);
-            this.addNeuron(neuronName, destination);
-        }
-    }, {
         key: "addEfferentNeuron",
 
 
@@ -2674,25 +2661,37 @@ var Graph = exports.Graph = function () {
          * @param {Array<number>} pos
          * @param {number} nodSep
          * @param {int} [hasBias]
+         * @param {int} [isInput]
          */
-        value: function createNeuronLayer(numX, numY, pos, nodSep, hasBias) {
+        value: function createNeuronLayer(numX, numY, pos, nodSep, hasBias, isInput) {
             var arr = [];
             for (var x = 0; x < numX; x++) {
                 for (var y = 0; y < numY; y++) {
                     var position = [pos[0] + (x - numX / 2) * nodSep, pos[1], pos[2] + (y - numY / 2) * nodSep, pos[3]];
 
-                    this.addNeuron(this.currHiddenNeuron.toString(), position);
-                    arr.push(this.currHiddenNeuron);
-                    this.currHiddenNeuron++;
+                    if (isInput !== undefined && isInput !== null && isInput === 1) {
+                        var name = "I" + this.currentNeuron.toString();
+                        this.addNeuron(name, position);
+                        arr.push(name);
+                        this.currentNeuron++;
+                        this.afferentNodesCount++;
+                    } else {
+                        var _name = "H" + this.currentNeuron.toString();
+                        this.addNeuron(_name, position);
+                        arr.push(_name);
+                        this.currentNeuron++;
+                    }
                 }
             }
 
             // bias neuron
             if (hasBias === 1.0) {
                 var _position = [pos[0], pos[1] - 10.0, pos[2] + (numY + 3 - numY / 2) * nodSep, pos[3]];
-                this.addNeuron(this.currHiddenNeuron.toString(), _position, hasBias);
-                arr.push(this.currHiddenNeuron);
-                this.currHiddenNeuron++;
+
+                var _name2 = "B" + this.currentNeuron.toString();
+                this.addNeuron(_name2, _position, hasBias);
+                arr.push(_name2);
+                this.currentNeuron++;
             }
 
             return arr;
@@ -5325,6 +5324,15 @@ var GBrainRL = exports.GBrainRL = function () {
         key: "stopLearning",
         value: function stopLearning() {
             this.learning = false;
+            this.forward_passes = 0;
+
+            for (var n = 0; n < 7; n++) {
+                this.windows[n] = {};
+                this.windows[n].state_window = new Array(this.window_size);
+                this.windows[n].action_window = new Array(this.window_size);
+                this.windows[n].reward_window = new Array(this.window_size);
+                this.windows[n].net_window = new Array(this.window_size);
+            }
         }
     }, {
         key: "resumeLearning",
@@ -5572,9 +5580,8 @@ var GBrain = exports.GBrain = function () {
             this.graph = new _Graph.Graph(this.sce, { "enableFonts": true });
             this.graph.enableNeuronalNetwork();
             this.graph.layerCount = 0;
-            this.inputCount = 0;
             this.outputCount = 0;
-            this.neuronLayers = [];
+            this.layers = [];
             this.graph.batch_repeats = jsonIn.batch_repeats;
             this.initialLearningRate = jsonIn.learning_rate;
             this.currentLearningRate = jsonIn.learning_rate;
@@ -5592,63 +5599,30 @@ var GBrain = exports.GBrain = function () {
         value: function makeLayers(layer_defs) {
             var _this = this;
 
+            var cnl = function cnl(num, weights, isInput) {
+                _this.graph.layer_defs[_this.graph.layerCount].hasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" ? 1.0 : 0.0;
+
+                _this.layers.push(_this.graph.createNeuronLayer(1, num, [_this.graph.layerCount * 30, 0.0, 0.0, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, isInput));
+
+                if (isInput === 0) _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": _this.layers[_this.layers.length - 2],
+                    "neuronLayerTarget": _this.layers[_this.layers.length - 1],
+                    "weights": weights !== undefined && weights !== null ? weights : null,
+                    "layer_neurons_count": _this.layers[_this.layers.length - 1].length,
+                    "layerNum": _this.graph.layerCount - 1,
+                    "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias }); // TODO l.activation
+            };
+
             this.graph.layer_defs = layer_defs;
 
-            var offsetX = -30;
             var lType = { "input": function input(l) {
-                    var offsetZ = -5.0 * (l.depth / 2);
-                    for (var n = 0; n < l.depth; n++) {
-                        _this.graph.addAfferentNeuron("input" + _this.inputCount, [offsetX, 0.0, offsetZ, 1.0]); // afferent neuron (input)
-                        _this.inputCount++;
-                        offsetZ += 5.0;
-                    }
+                    cnl(l.depth, l.weights, 1);
 
-                    var nextHasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" ? 1.0 : 0.0;
-                    if (nextHasBias === 1.0) {
-                        offsetZ += 25.0;
-                        _this.graph.addNeuron("bias0", [offsetX, -10.0, offsetZ, 1.0], nextHasBias); // bias neuron
-                        _this.graph.layer_defs[_this.graph.layerCount].hasBias = 1.0;
-                    }
                     _this.graph.layerCount++;
-                    offsetX += 30.0;
                 },
                 "fc": function fc(l) {
-                    var nextHasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" ? 1.0 : 0.0;
-                    _this.graph.layer_defs[_this.graph.layerCount].hasBias = nextHasBias;
-
-                    var neuronLayer = _this.graph.createNeuronLayer(1, l.num_neurons, [offsetX, 0.0, 0.0, 1.0], 5.0, nextHasBias); // numX, numY, visible position
-                    _this.neuronLayers.push(neuronLayer);
-
-                    if (_this.graph.layerCount === 1) {
-                        var we = l.weights;
-                        for (var n = 0; n < _this.inputCount; n++) {
-                            _this.graph.connectNeuronWithNeuronLayer({ "neuron": "input" + n,
-                                "neuronLayer": _this.neuronLayers[_this.neuronLayers.length - 1],
-                                "activationFunc": 0,
-                                "weight": l.weights !== undefined && l.weights !== null ? we.slice(0, l.num_neurons) : null,
-                                "layer_neurons_count": _this.inputCount,
-                                "multiplier": 1,
-                                "layerNum": _this.graph.layerCount - 1,
-                                "hasBias": nextHasBias });
-                            if (l.weights !== undefined && l.weights !== null) we = we.slice(l.num_neurons);
-                        }
-                        _this.graph.connectNeuronWithNeuronLayer({ "neuron": "bias0",
-                            "neuronLayer": _this.neuronLayers[_this.neuronLayers.length - 1],
-                            "activationFunc": 0,
-                            "weight": l.weights !== undefined && l.weights !== null ? we : null,
-                            "layer_neurons_count": _this.inputCount,
-                            "multiplier": 1,
-                            "layerNum": _this.graph.layerCount - 1,
-                            "hasBias": nextHasBias });
-                    } else _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": _this.neuronLayers[_this.neuronLayers.length - 2],
-                        "neuronLayerTarget": _this.neuronLayers[_this.neuronLayers.length - 1],
-                        "weights": l.weights !== undefined && l.weights !== null ? l.weights : null,
-                        "layer_neurons_count": _this.neuronLayers[_this.neuronLayers.length - 1].length,
-                        "layerNum": _this.graph.layerCount - 1,
-                        "hasBias": nextHasBias }); // TODO l.activation
+                    cnl(l.num_neurons, l.weights, 0);
 
                     _this.graph.layerCount++;
-                    offsetX += 30.0;
                 },
                 "regression": function regression(l) {
                     var offsetZ = -30.0 * (l.num_neurons / 2);
@@ -5662,13 +5636,13 @@ var GBrain = exports.GBrain = function () {
                         }
                     }
                     for (var _n = 0; _n < l.num_neurons; _n++) {
-                        _this.graph.addEfferentNeuron("output" + _this.outputCount, [offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
-                        _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": _this.neuronLayers[_this.neuronLayers.length - 1],
-                            "neuron": "output" + _this.outputCount,
-                            "weight": l.weights !== undefined && l.weights !== null ? newWe.slice(0, _this.neuronLayers[_this.neuronLayers.length - 1].length) : null,
-                            "layer_neurons_count": _this.neuronLayers[_this.neuronLayers.length - 2].length * _this.neuronLayers[_this.neuronLayers.length - 1].length,
+                        _this.graph.addEfferentNeuron("O" + _this.outputCount, [_this.graph.layerCount * 30, 0.0, offsetZ, 1.0]); // efferent neuron (output)
+                        _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": _this.layers[_this.layers.length - 1],
+                            "neuron": "O" + _this.outputCount,
+                            "weight": l.weights !== undefined && l.weights !== null ? newWe.slice(0, _this.layers[_this.layers.length - 1].length) : null,
+                            "layer_neurons_count": _this.layers[_this.layers.length - 2].length * _this.layers[_this.layers.length - 1].length,
                             "layerNum": _this.graph.layerCount - 1 });
-                        if (l.weights !== undefined && l.weights !== null) newWe = newWe.slice(_this.neuronLayers[_this.neuronLayers.length - 1].length);
+                        if (l.weights !== undefined && l.weights !== null) newWe = newWe.slice(_this.layers[_this.layers.length - 1].length);
 
                         _this.outputCount++;
                         offsetZ += 30.0;
