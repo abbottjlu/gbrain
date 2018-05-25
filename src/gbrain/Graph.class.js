@@ -168,7 +168,7 @@ export class Graph {
 
         this.layout = null;
 
-        this.currHiddenNeuron = 0;
+        this.currentNeuron = 0;
         this.nodSep = 5.0;
 
         //**************************************************
@@ -917,16 +917,6 @@ export class Graph {
      * @param {String} neuronName
      * @param {Array<number>} [destination=[0.0, 0.0, 0.0, 1.0]]
      */
-    addAfferentNeuron(neuronName, destination) {
-        this.afferentNodesCount++;
-        this.afferentNeuron.push(neuronName);
-        this.addNeuron(neuronName, destination);
-    };
-
-    /**
-     * @param {String} neuronName
-     * @param {Array<number>} [destination=[0.0, 0.0, 0.0, 1.0]]
-     */
     addEfferentNeuron(neuronName, destination) {
         this.efferentNodesCount++;
         this.efferentNeuron.push(neuronName);
@@ -939,25 +929,37 @@ export class Graph {
      * @param {Array<number>} pos
      * @param {number} nodSep
      * @param {int} [hasBias]
+     * @param {int} [isInput]
      */
-    createNeuronLayer(numX, numY, pos, nodSep, hasBias) {
+    createNeuronLayer(numX, numY, pos, nodSep, hasBias, isInput) {
         let arr = [];
         for(let x=0; x < numX; x++) {
             for(let y=0; y < numY; y++) {
                 let position = [pos[0]+((x-(numX/2))*nodSep), pos[1], pos[2]+((y-(numY/2))*nodSep), pos[3]];
 
-                this.addNeuron(this.currHiddenNeuron.toString(), position);
-                arr.push(this.currHiddenNeuron);
-                this.currHiddenNeuron++;
+                if(isInput !== undefined && isInput !== null && isInput === 1) {
+                    let name = "I"+this.currentNeuron.toString();
+                    this.addNeuron(name, position);
+                    arr.push(name);
+                    this.currentNeuron++;
+                    this.afferentNodesCount++;
+                } else {
+                    let name = "H"+this.currentNeuron.toString();
+                    this.addNeuron(name, position);
+                    arr.push(name);
+                    this.currentNeuron++;
+                }
             }
         }
 
         // bias neuron
         if(hasBias === 1.0) {
             let position = [pos[0], pos[1]-10.0, pos[2]+(((numY+3)-(numY/2))*nodSep), pos[3]];
-            this.addNeuron(this.currHiddenNeuron.toString(), position, hasBias);
-            arr.push(this.currHiddenNeuron);
-            this.currHiddenNeuron++;
+
+            let name = "B"+this.currentNeuron.toString();
+            this.addNeuron(name, position, hasBias);
+            arr.push(name);
+            this.currentNeuron++;
         }
 
         return arr;

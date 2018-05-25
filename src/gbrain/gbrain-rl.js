@@ -275,6 +275,15 @@ export class GBrainRL {
 
     stopLearning() {
         this.learning = false;
+        this.forward_passes = 0;
+
+        for(let n=0; n < 7; n++) {
+            this.windows[n] = {};
+            this.windows[n].state_window = new Array(this.window_size);
+            this.windows[n].action_window = new Array(this.window_size);
+            this.windows[n].reward_window = new Array(this.window_size);
+            this.windows[n].net_window = new Array(this.window_size);
+        }
     };
 
     resumeLearning() {

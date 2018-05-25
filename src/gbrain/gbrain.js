@@ -47,9 +47,8 @@ export class GBrain {
         this.graph = new Graph(this.sce,{"enableFonts":true});
         this.graph.enableNeuronalNetwork();
         this.graph.layerCount = 0;
-        this.inputCount = 0;
         this.outputCount = 0;
-        this.neuronLayers = [];
+        this.layers = [];
         this.graph.batch_repeats = jsonIn.batch_repeats;
         this.initialLearningRate = jsonIn.learning_rate;
         this.currentLearningRate = jsonIn.learning_rate;
@@ -62,65 +61,32 @@ export class GBrain {
      * @param {Array<Object>} layer_defs
      */
     makeLayers(layer_defs) {
+        let cnl = (num, weights, isInput) => {
+            this.graph.layer_defs[this.graph.layerCount].hasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" ||
+                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "regression") ? 1.0 : 0.0;
+
+            this.layers.push(this.graph.createNeuronLayer(1, num, [this.graph.layerCount*30, 0.0, 0.0, 1.0], 5.0, this.graph.layer_defs[this.graph.layerCount].hasBias, isInput));
+
+            if(isInput === 0)
+                this.graph.connectNeuronLayerWithNeuronLayer({  "neuronLayerOrigin": this.layers[this.layers.length-2],
+                                                                "neuronLayerTarget": this.layers[this.layers.length-1],
+                                                                "weights": ((weights !== undefined && weights !== null) ? weights : null),
+                                                                "layer_neurons_count": this.layers[this.layers.length-1].length,
+                                                                "layerNum": this.graph.layerCount-1,
+                                                                "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias}); // TODO l.activation
+        };
+
         this.graph.layer_defs = layer_defs;
 
-        let offsetX = -30;
         let lType = {   "input": (l) => {
-                            let offsetZ = -5.0*(l.depth/2);
-                            for(let n=0; n < l.depth; n++) {
-                                this.graph.addAfferentNeuron("input"+this.inputCount, [offsetX, 0.0, offsetZ, 1.0]); // afferent neuron (input)
-                                this.inputCount++;
-                                offsetZ += 5.0;
-                            }
+                            cnl(l.depth, l.weights, 1);
 
-                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu") ? 1.0 : 0.0;
-                            if(nextHasBias === 1.0) {
-                                offsetZ += 25.0;
-                                this.graph.addNeuron("bias0", [offsetX, -10.0, offsetZ, 1.0], nextHasBias); // bias neuron
-                                this.graph.layer_defs[this.graph.layerCount].hasBias = 1.0;
-                            }
                             this.graph.layerCount++;
-                            offsetX += 30.0;
                         },
                         "fc": (l) => {
-                            let nextHasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" || this.graph.layer_defs[this.graph.layerCount+1].type === "regression") ? 1.0 : 0.0;
-                            this.graph.layer_defs[this.graph.layerCount].hasBias = nextHasBias;
-
-                            let neuronLayer = this.graph.createNeuronLayer(1, l.num_neurons, [offsetX, 0.0, 0.0, 1.0], 5.0, nextHasBias); // numX, numY, visible position
-                            this.neuronLayers.push(neuronLayer);
-
-                            if(this.graph.layerCount === 1) {
-                                let we = l.weights;
-                                for(let n=0; n < this.inputCount; n++) {
-                                    this.graph.connectNeuronWithNeuronLayer({   "neuron": "input"+n,
-                                                                                "neuronLayer": this.neuronLayers[this.neuronLayers.length-1],
-                                                                                "activationFunc": 0,
-                                                                                "weight": ((l.weights !== undefined && l.weights !== null) ? we.slice(0, l.num_neurons) : null),
-                                                                                "layer_neurons_count": this.inputCount,
-                                                                                "multiplier": 1,
-                                                                                "layerNum": this.graph.layerCount-1,
-                                                                                "hasBias": nextHasBias});
-                                    if(l.weights !== undefined && l.weights !== null)
-                                        we = we.slice(l.num_neurons);
-                                }
-                                this.graph.connectNeuronWithNeuronLayer({   "neuron": "bias0",
-                                                                            "neuronLayer": this.neuronLayers[this.neuronLayers.length-1],
-                                                                            "activationFunc": 0,
-                                                                            "weight": ((l.weights !== undefined && l.weights !== null) ? we : null),
-                                                                            "layer_neurons_count": this.inputCount,
-                                                                            "multiplier": 1,
-                                                                            "layerNum": this.graph.layerCount-1,
-                                                                            "hasBias": nextHasBias});
-                            } else
-                                this.graph.connectNeuronLayerWithNeuronLayer({  "neuronLayerOrigin": this.neuronLayers[this.neuronLayers.length-2],
-                                                                                "neuronLayerTarget": this.neuronLayers[this.neuronLayers.length-1],
-                                                                                "weights": ((l.weights !== undefined && l.weights !== null) ? l.weights : null),
-                                                                                "layer_neurons_count": this.neuronLayers[this.neuronLayers.length-1].length,
-                                                                                "layerNum": this.graph.layerCount-1,
-                                                                                "hasBias": nextHasBias}); // TODO l.activation
+                            cnl(l.num_neurons, l.weights, 0);
 
                             this.graph.layerCount++;
-                            offsetX += 30.0;
                         },
                         "regression": (l) => {
                             let offsetZ = -30.0*(l.num_neurons/2);
@@ -133,14 +99,14 @@ export class GBrain {
                                 }
                             }
                             for(let n=0; n < l.num_neurons; n++) {
-                                this.graph.addEfferentNeuron("output"+this.outputCount, [offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
-                                this.graph.connectNeuronLayerWithNeuron({   "neuronLayer": this.neuronLayers[this.neuronLayers.length-1],
-                                                                            "neuron": "output"+this.outputCount,
-                                                                            "weight": ((l.weights !== undefined && l.weights !== null) ? newWe.slice(0, this.neuronLayers[this.neuronLayers.length-1].length) : null),
-                                                                            "layer_neurons_count": this.neuronLayers[this.neuronLayers.length-2].length*this.neuronLayers[this.neuronLayers.length-1].length,
+                                this.graph.addEfferentNeuron("O"+this.outputCount, [this.graph.layerCount*30, 0.0, offsetZ, 1.0]); // efferent neuron (output)
+                                this.graph.connectNeuronLayerWithNeuron({   "neuronLayer": this.layers[this.layers.length-1],
+                                                                            "neuron": "O"+this.outputCount,
+                                                                            "weight": ((l.weights !== undefined && l.weights !== null) ? newWe.slice(0, this.layers[this.layers.length-1].length) : null),
+                                                                            "layer_neurons_count": this.layers[this.layers.length-2].length*this.layers[this.layers.length-1].length,
                                                                             "layerNum": this.graph.layerCount-1});
                                 if(l.weights !== undefined && l.weights !== null)
-                                    newWe = newWe.slice(this.neuronLayers[this.neuronLayers.length-1].length);
+                                    newWe = newWe.slice(this.layers[this.layers.length-1].length);
 
                                 this.outputCount++;
                                 offsetZ += 30.0;
