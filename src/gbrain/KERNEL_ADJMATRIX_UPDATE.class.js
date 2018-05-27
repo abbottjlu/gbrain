@@ -19,6 +19,7 @@ export class KERNEL_ADJMATRIX_UPDATE {
             float linkWeight = adjMat.z;
             float linkTypeParent = adjMat.w;
             
+            float multiplier = adjMatD.z;
             float weightAbsSum = adjMatB.x;
             float costA = adjMatB.y;
             float costB = adjMatC.x;
@@ -28,7 +29,9 @@ export class KERNEL_ADJMATRIX_UPDATE {
             float costF = adjMatD.x;
             float costG = adjMatD.y;
             
-            if(currentTrainLayer == -10.0) { 
+            if(multiplier != 1.0) {
+                linkWeight = multiplier;
+            } else if(currentTrainLayer == -10.0) { 
                 costA = 0.0;
                 costB = 0.0;
                 costC = 0.0;

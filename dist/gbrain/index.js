@@ -2227,6 +2227,19 @@ var Graph = exports.Graph = function () {
 
             this.updateNodes();
             this.updateLinks();
+
+            this.comp_renderer_nodes.setArg("enableTrain", function () {
+                return 1.0;
+            });
+            this.comp_renderer_nodes.gpufG.enableKernel(1);
+            this.comp_renderer_nodes.setArg("currentTrainLayer", function () {
+                return -10.0;
+            });
+            this._sce.getLoadedProject().getActiveStage().tick();
+            this.comp_renderer_nodes.gpufG.disableKernel(1);
+            this.comp_renderer_nodes.setArg("enableTrain", function () {
+                return 0.0;
+            });
         }
     }, {
         key: "mouseDown",
@@ -2670,7 +2683,7 @@ var Graph = exports.Graph = function () {
                     var position = [pos[0] + (x - numX / 2) * nodSep, pos[1], pos[2] + (y - numY / 2) * nodSep, pos[3]];
 
                     if (isInput !== undefined && isInput !== null && isInput === 1) {
-                        var name = "I" + this.currentNeuron.toString();
+                        var name = numX === 1 ? "I" + this.currentNeuron.toString() : this.layerCount.toString() + x + "_" + y;
                         this.addNeuron(name, position);
                         arr.push(name);
                         this.currentNeuron++;
@@ -2697,63 +2710,80 @@ var Graph = exports.Graph = function () {
             return arr;
         }
     }, {
-        key: "createXYNeuronsFromImage",
+        key: "connectConvXYNeuronsFromXYNeurons",
 
 
         /**
          * @param {Object} jsonIn
-         * @param {String} jsonIn.neuron
-         * @param {Array<number>} jsonIn.position
          * @param {int} jsonIn.w
-         * @param {int} jsonIn.h
+         * @param {Array<int>} jsonIn.neuronLayerOrigin
+         * @param {Array<int>} jsonIn.neuronLayerTarget
+         * @param {number|null|Array<number>} [jsonIn.weight]
+         * @param {int} [jsonIn.layer_neurons_count]
+         * @param {number} [jsonIn.multiplier=1.0]
+         * @param {int} jsonIn.layerNum
+         * @param {int} jsonIn.hasBias
+         * @param {int} jsonIn.convMatrixId
          */
-        value: function createXYNeuronsFromImage(jsonIn) {
-            var arr = [];
-            for (var x = 0; x < jsonIn.w; x++) {
-                for (var y = 0; y < jsonIn.h; y++) {
-                    var position = [jsonIn.position[0] + (y - jsonIn.w / 2) * this.nodSep, jsonIn.position[1], jsonIn.position[2] + (x - jsonIn.h / 2) * this.nodSep, jsonIn.position[3]];
+        value: function connectConvXYNeuronsFromXYNeurons(jsonIn) {
+            var convMatrix = {};
+            convMatrix[0] = [// emboss
+            -2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0];
+            convMatrix[1] = [// bottom sobel
+            -1.0, -2.0, -1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 1.0];
+            convMatrix[2] = [// left sobel
+            1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0];
+            convMatrix[3] = [// outline
+            -1.0, -1.0, -1.0, -1.0, 8.0, -1.0, -1.0, -1.0, -1.0];
+            convMatrix[4] = [// right sobel
+            -1.0, 0.0, 1.0, -2.0, 0.0, 2.0, -1.0, 0.0, 1.0];
+            convMatrix[5] = [// sharpen
+            0.0, -1.0, 0.0, -1.0, 5.0, -1.0, 0.0, -1.0, 0.0];
 
-                    this.addNeuron(jsonIn.neuron + x + "_" + y, position);
-                    arr.push(jsonIn.neuron + x + "_" + y);
+            var idds = [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
+
+            var arr = [];
+            var xT = 0;
+            var yT = 0;
+            var xO = 1;
+            var yO = 1;
+            for (var n = 0; n < (jsonIn.hasBias === 1.0 ? jsonIn.neuronLayerTarget.length - 1 : jsonIn.neuronLayerTarget.length); n++) {
+                if (xT === jsonIn.w) {
+                    xT = 0;
+                    yT++;
+                    xO = 1;
+                    yO++;
+                } else {
+                    xT++;
+                    xO++;
                 }
-            }
 
-            return arr;
-        }
-    }, {
-        key: "createConvXYNeuronsFromXYNeurons",
+                //let idT = (yT*jsonIn.w)+xT;
 
+                var idConvM = 0;
+                for (var nb = 0; nb < idds.length; nb++) {
+                    var xOf = xO + idds[nb].x;
+                    var yOf = yO + idds[nb].y;
 
-        /**
-         * @param {Object} jsonIn
-         * @param {Array<number>} jsonIn.position
-         * @param {int} jsonIn.w
-         * @param {int} jsonIn.h
-         * @param {String} jsonIn.idOrigin
-         * @param {String} jsonIn.idTarget
-         * @param {int} jsonIn.activationFunc
-         * @param {Array<number>} jsonIn.convMatrix
-         */
-        value: function createConvXYNeuronsFromXYNeurons(jsonIn) {
-            var arr = [];
-            for (var x = 0; x < jsonIn.w - 2; x++) {
-                for (var y = 0; y < jsonIn.h - 2; y++) {
-                    var position = [jsonIn.position[0] + (y - jsonIn.w / 2) * this.nodSep, jsonIn.position[1], jsonIn.position[2] + (x - jsonIn.h / 2) * this.nodSep, jsonIn.position[3]];
+                    var idO = yOf * (jsonIn.w + 2) + xOf;
 
-                    this.addNeuron(jsonIn.idTarget + x + "_" + y, position);
-                    arr.push(jsonIn.idTarget + x + "_" + y);
-
-                    var idConvM = 0;
-                    for (var xa = x; xa < x + 3; xa++) {
-                        for (var ya = y; ya < y + 3; ya++) {
-                            this.addSinapsis({ "neuronNameA": jsonIn.idOrigin + xa + "_" + ya,
-                                "neuronNameB": jsonIn.idTarget + x + "_" + y,
-                                "activationFunc": jsonIn.activationFunc,
-                                "multiplier": jsonIn.convMatrix[idConvM],
-                                "layerNum": 0 }); //TODO layerNum
-                            idConvM++;
-                        }
-                    }
+                    this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
+                        "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                        "activationFunc": jsonIn.activationFunc,
+                        "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n] : jsonIn.weight,
+                        "layer_neurons_count": jsonIn.layer_neurons_count,
+                        "multiplier": convMatrix[jsonIn.convMatrixId][nb] + 0.0001,
+                        "layerNum": jsonIn.layerNum });
+                    idConvM++;
+                }
+                if (jsonIn.hasBias === 1.0) {
+                    this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length - 1].toString(),
+                        "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                        "activationFunc": jsonIn.activationFunc,
+                        "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n] : jsonIn.weight,
+                        "layer_neurons_count": jsonIn.layer_neurons_count,
+                        "multiplier": jsonIn.multiplier,
+                        "layerNum": jsonIn.layerNum });
                 }
             }
 
@@ -4370,24 +4400,24 @@ var Graph = exports.Graph = function () {
                 var idx = pixel * 4;
 
                 _this14.arrAdjMatrix[idx] = layerNum;
-                _this14.arrAdjMatrix[idx + 1] = 0.0;
+                _this14.arrAdjMatrix[idx + 1] = 0.0; // weightQuadSum
                 _this14.arrAdjMatrix[idx + 2] = columnAsParent === true ? 0.0 : weight;
                 _this14.arrAdjMatrix[idx + 3] = columnAsParent === true ? 1.0 : 0.5; // columnAsParent=1.0;
 
-                _this14.arrAdjMatrixB[idx] = linkMultiplier; // not used here
-                _this14.arrAdjMatrixB[idx + 1] = activationFunc; // not used here
+                _this14.arrAdjMatrixB[idx] = 0.0; // weightAbsSum
+                _this14.arrAdjMatrixB[idx + 1] = 0.0; // costA
                 _this14.arrAdjMatrixB[idx + 2] = nodeId;
                 _this14.arrAdjMatrixB[idx + 3] = nodeIdInv;
 
-                _this14.arrAdjMatrixC[idx] = 0.0;
-                _this14.arrAdjMatrixC[idx + 1] = 0.0;
-                _this14.arrAdjMatrixC[idx + 2] = 0.0;
-                _this14.arrAdjMatrixC[idx + 3] = 0.0;
+                _this14.arrAdjMatrixC[idx] = 0.0; // costB
+                _this14.arrAdjMatrixC[idx + 1] = 0.0; // costC
+                _this14.arrAdjMatrixC[idx + 2] = 0.0; // costD
+                _this14.arrAdjMatrixC[idx + 3] = 0.0; // costE
 
-                _this14.arrAdjMatrixD[idx] = 0.0;
-                _this14.arrAdjMatrixD[idx + 1] = 0.0;
-                _this14.arrAdjMatrixD[idx + 2] = 0.0;
-                _this14.arrAdjMatrixD[idx + 3] = 0.0;
+                _this14.arrAdjMatrixD[idx] = 0.0; // costF
+                _this14.arrAdjMatrixD[idx + 1] = 0.0; // costG
+                _this14.arrAdjMatrixD[idx + 2] = linkMultiplier;
+                _this14.arrAdjMatrixD[idx + 3] = activationFunc;
             };
 
             this.arrAdjMatrix = new Float32Array(this._ADJ_MATRIX_WIDTH * this._ADJ_MATRIX_WIDTH * 4);
@@ -4586,7 +4616,7 @@ var KERNEL_ADJMATRIX_UPDATE = exports.KERNEL_ADJMATRIX_UPDATE = function () {
             "",
 
             // source
-            "vec4 adjMat = adjacencyMatrix[x]; \n            vec4 adjMatB = adjacencyMatrixB[x];\n            vec4 adjMatC = adjacencyMatrixC[x];\n            vec4 adjMatD = adjacencyMatrixD[x];\n\n            float linkLayerNum = adjMat.x;\n            float weightQuadSum = adjMat.y;\n            float linkWeight = adjMat.z;\n            float linkTypeParent = adjMat.w;\n            \n            float weightAbsSum = adjMatB.x;\n            float costA = adjMatB.y;\n            float costB = adjMatC.x;\n            float costC = adjMatC.y;\n            float costD = adjMatC.z;\n            float costE = adjMatC.w;\n            float costF = adjMatD.x;\n            float costG = adjMatD.y;\n            \n            if(currentTrainLayer == -10.0) { \n                costA = 0.0;\n                costB = 0.0;\n                costC = 0.0;\n                costD = 0.0;\n                costE = 0.0;\n                costF = 0.0;\n                costG = 0.0;\n            } else if(linkTypeParent == 0.5 && linkLayerNum >= 0.0) {\n                float id = adjMatB.z;\n                float idInv = adjMatB.w;\n            \n                vec2 xGeometryCurrentChild = get_global_id(id, bufferNodesWidth, " + geometryLength.toFixed(1) + ");\n                vec2 xGeometryParent = get_global_id(idInv, bufferNodesWidth, " + geometryLength.toFixed(1) + (");\n\n\n                float childBiasNode = dataB[xGeometryCurrentChild].x;\n                \n                float childGOutputA = dataB[xGeometryCurrentChild].z;\n                float childGOutputB = dataF[xGeometryCurrentChild].x;\n                float childGOutputC = dataF[xGeometryCurrentChild].z;\n                float childGOutputD = dataG[xGeometryCurrentChild].x;\n                float childGOutputE = dataG[xGeometryCurrentChild].z;\n                float childGOutputF = dataH[xGeometryCurrentChild].x;\n                float childGOutputG = dataH[xGeometryCurrentChild].z;\n                \n                \n                float parentGOutputA = dataB[xGeometryParent].z;\n                float parentGOutputB = dataF[xGeometryParent].x;\n                float parentGOutputC = dataF[xGeometryParent].z;\n                float parentGOutputD = dataG[xGeometryParent].x;\n                float parentGOutputE = dataG[xGeometryParent].z;\n                float parentGOutputF = dataH[xGeometryParent].x;\n                float parentGOutputG = dataH[xGeometryParent].z;\n                \n                float parentGDeltaA = dataB[xGeometryParent].y;\n                float parentGDeltaB = dataB[xGeometryParent].w;\n                float parentGDeltaC = dataF[xGeometryParent].y;\n                float parentGDeltaD = dataF[xGeometryParent].w;\n                float parentGDeltaE = dataG[xGeometryParent].y;\n                float parentGDeltaF = dataG[xGeometryParent].w;\n                float parentGDeltaG = dataH[xGeometryParent].y;\n                \n                \n                \n                float lr = learningRate;\n                float l1_decay = 0.0;\n                float l2_decay = 0.01;\n                float gpu_batch_size = 7.0;     \n                \n                if(currentTrainLayer == linkLayerNum) {\n                    if(weightQuadSum != 0.0) {                        \n                        float parentGOutputDerivA = 1.0;                    \n                        float parentGOutputDerivB = 1.0;\n                        float parentGOutputDerivC = 1.0;\n                        float parentGOutputDerivD = 1.0;\n                        float parentGOutputDerivE = 1.0;\n                        float parentGOutputDerivF = 1.0;\n                        float parentGOutputDerivG = 1.0;\n                        if(linkLayerNum < layerCount-2.0) {\n                            parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    \n                            parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;\n                        }\n                        \n                        float dA = parentGDeltaA*parentGOutputDerivA;\n                        float dB = parentGDeltaB*parentGOutputDerivB;\n                        float dC = parentGDeltaC*parentGOutputDerivC;\n                        float dD = parentGDeltaD*parentGOutputDerivD;\n                        float dE = parentGDeltaE*parentGOutputDerivE;\n                        float dF = parentGDeltaF*parentGOutputDerivF;\n                        float dG = parentGDeltaG*parentGOutputDerivG;\n                        \n                        float wT = 0.0;\n                        wT += dA*childGOutputA;\n                        wT += dB*childGOutputB;\n                        wT += dC*childGOutputC;\n                        wT += dD*childGOutputD;\n                        wT += dE*childGOutputE;\n                        wT += dF*childGOutputF;\n                        wT += dG*childGOutputG;\n                        wT /= (gpu_batch_size*batch_repeats);\n                    \n                        costA = dA*linkWeight;\n                        costB = dB*linkWeight;\n                        costC = dC*linkWeight;\n                        costD = dD*linkWeight;\n                        costE = dE*linkWeight;\n                        costF = dF*linkWeight;\n                        costG = dG*linkWeight;\n                        \n                        linkWeight += -lr*(" + " wT);\n                        weightQuadSum = 0.0;\n                        weightAbsSum = 0.0;                        \n                    } else {\n                        weightQuadSum += linkWeight*linkWeight;\n                        weightAbsSum += abs(linkWeight);\n                    }\n                }\n            }\n            \n            return [vec4(linkLayerNum, weightQuadSum, linkWeight, linkTypeParent), vec4(weightAbsSum, costA, adjMatB.z, adjMatB.w), vec4(costB, costC, costD, costE), vec4(costF, costG, 0.0, 0.0)];\n            ")];
+            "vec4 adjMat = adjacencyMatrix[x]; \n            vec4 adjMatB = adjacencyMatrixB[x];\n            vec4 adjMatC = adjacencyMatrixC[x];\n            vec4 adjMatD = adjacencyMatrixD[x];\n\n            float linkLayerNum = adjMat.x;\n            float weightQuadSum = adjMat.y;\n            float linkWeight = adjMat.z;\n            float linkTypeParent = adjMat.w;\n            \n            float multiplier = adjMatD.z;\n            float weightAbsSum = adjMatB.x;\n            float costA = adjMatB.y;\n            float costB = adjMatC.x;\n            float costC = adjMatC.y;\n            float costD = adjMatC.z;\n            float costE = adjMatC.w;\n            float costF = adjMatD.x;\n            float costG = adjMatD.y;\n            \n            if(multiplier != 1.0) {\n                linkWeight = multiplier;\n            } else if(currentTrainLayer == -10.0) { \n                costA = 0.0;\n                costB = 0.0;\n                costC = 0.0;\n                costD = 0.0;\n                costE = 0.0;\n                costF = 0.0;\n                costG = 0.0;\n            } else if(linkTypeParent == 0.5 && linkLayerNum >= 0.0) {\n                float id = adjMatB.z;\n                float idInv = adjMatB.w;\n            \n                vec2 xGeometryCurrentChild = get_global_id(id, bufferNodesWidth, " + geometryLength.toFixed(1) + ");\n                vec2 xGeometryParent = get_global_id(idInv, bufferNodesWidth, " + geometryLength.toFixed(1) + (");\n\n\n                float childBiasNode = dataB[xGeometryCurrentChild].x;\n                \n                float childGOutputA = dataB[xGeometryCurrentChild].z;\n                float childGOutputB = dataF[xGeometryCurrentChild].x;\n                float childGOutputC = dataF[xGeometryCurrentChild].z;\n                float childGOutputD = dataG[xGeometryCurrentChild].x;\n                float childGOutputE = dataG[xGeometryCurrentChild].z;\n                float childGOutputF = dataH[xGeometryCurrentChild].x;\n                float childGOutputG = dataH[xGeometryCurrentChild].z;\n                \n                \n                float parentGOutputA = dataB[xGeometryParent].z;\n                float parentGOutputB = dataF[xGeometryParent].x;\n                float parentGOutputC = dataF[xGeometryParent].z;\n                float parentGOutputD = dataG[xGeometryParent].x;\n                float parentGOutputE = dataG[xGeometryParent].z;\n                float parentGOutputF = dataH[xGeometryParent].x;\n                float parentGOutputG = dataH[xGeometryParent].z;\n                \n                float parentGDeltaA = dataB[xGeometryParent].y;\n                float parentGDeltaB = dataB[xGeometryParent].w;\n                float parentGDeltaC = dataF[xGeometryParent].y;\n                float parentGDeltaD = dataF[xGeometryParent].w;\n                float parentGDeltaE = dataG[xGeometryParent].y;\n                float parentGDeltaF = dataG[xGeometryParent].w;\n                float parentGDeltaG = dataH[xGeometryParent].y;\n                \n                \n                \n                float lr = learningRate;\n                float l1_decay = 0.0;\n                float l2_decay = 0.01;\n                float gpu_batch_size = 7.0;     \n                \n                if(currentTrainLayer == linkLayerNum) {\n                    if(weightQuadSum != 0.0) {                        \n                        float parentGOutputDerivA = 1.0;                    \n                        float parentGOutputDerivB = 1.0;\n                        float parentGOutputDerivC = 1.0;\n                        float parentGOutputDerivD = 1.0;\n                        float parentGOutputDerivE = 1.0;\n                        float parentGOutputDerivF = 1.0;\n                        float parentGOutputDerivG = 1.0;\n                        if(linkLayerNum < layerCount-2.0) {\n                            parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    \n                            parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;\n                        }\n                        \n                        float dA = parentGDeltaA*parentGOutputDerivA;\n                        float dB = parentGDeltaB*parentGOutputDerivB;\n                        float dC = parentGDeltaC*parentGOutputDerivC;\n                        float dD = parentGDeltaD*parentGOutputDerivD;\n                        float dE = parentGDeltaE*parentGOutputDerivE;\n                        float dF = parentGDeltaF*parentGOutputDerivF;\n                        float dG = parentGDeltaG*parentGOutputDerivG;\n                        \n                        float wT = 0.0;\n                        wT += dA*childGOutputA;\n                        wT += dB*childGOutputB;\n                        wT += dC*childGOutputC;\n                        wT += dD*childGOutputD;\n                        wT += dE*childGOutputE;\n                        wT += dF*childGOutputF;\n                        wT += dG*childGOutputG;\n                        wT /= (gpu_batch_size*batch_repeats);\n                    \n                        costA = dA*linkWeight;\n                        costB = dB*linkWeight;\n                        costC = dC*linkWeight;\n                        costD = dD*linkWeight;\n                        costE = dE*linkWeight;\n                        costF = dF*linkWeight;\n                        costG = dG*linkWeight;\n                        \n                        linkWeight += -lr*(" + " wT);\n                        weightQuadSum = 0.0;\n                        weightAbsSum = 0.0;                        \n                    } else {\n                        weightQuadSum += linkWeight*linkWeight;\n                        weightAbsSum += abs(linkWeight);\n                    }\n                }\n            }\n            \n            return [vec4(linkLayerNum, weightQuadSum, linkWeight, linkTypeParent), vec4(weightAbsSum, costA, adjMatB.z, adjMatB.w), vec4(costB, costC, costD, costE), vec4(costF, costG, 0.0, 0.0)];\n            ")];
         }
     }]);
 
@@ -5581,7 +5611,7 @@ var GBrain = exports.GBrain = function () {
             this.graph.enableNeuronalNetwork();
             this.graph.layerCount = 0;
             this.outputCount = 0;
-            this.layers = [];
+            this.layerNodes = [];
             this.graph.batch_repeats = jsonIn.batch_repeats;
             this.initialLearningRate = jsonIn.learning_rate;
             this.currentLearningRate = jsonIn.learning_rate;
@@ -5599,30 +5629,88 @@ var GBrain = exports.GBrain = function () {
         value: function makeLayers(layer_defs) {
             var _this = this;
 
-            var cnl = function cnl(num, weights, isInput) {
+            var ml = function ml(w, h, isInput, type, posZ) {
                 _this.graph.layer_defs[_this.graph.layerCount].hasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" ? 1.0 : 0.0;
 
-                _this.layers.push(_this.graph.createNeuronLayer(1, num, [_this.graph.layerCount * 30, 0.0, 0.0, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, isInput));
+                if (type === "conv") {
+                    w -= 2;
+                    h -= 2;
+                    _this.graph.layer_defs[_this.graph.layerCount].out_sx = w;
+                    _this.graph.layer_defs[_this.graph.layerCount].out_sy = h;
+                }
 
-                if (isInput === 0) _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": _this.layers[_this.layers.length - 2],
-                    "neuronLayerTarget": _this.layers[_this.layers.length - 1],
-                    "weights": weights !== undefined && weights !== null ? weights : null,
-                    "layer_neurons_count": _this.layers[_this.layers.length - 1].length,
-                    "layerNum": _this.graph.layerCount - 1,
-                    "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias }); // TODO l.activation
+                return _this.graph.createNeuronLayer(w, h, [_this.offsetX, 0.0, posZ, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, isInput);
+            };
+
+            var mr = function mr(w, originLayer, targetLayer, weights, type, convMatrixId) {
+                if (type === "fc") {
+                    _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": originLayer,
+                        "neuronLayerTarget": targetLayer,
+                        "weights": weights !== undefined && weights !== null ? weights : null,
+                        "layer_neurons_count": _this.layerNodes[_this.layerNodes.length - 1].length,
+                        "layerNum": _this.graph.layerCount - 1,
+                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias }); // TODO l.activation
+                } else if (type === "conv") {
+                    _this.graph.connectConvXYNeuronsFromXYNeurons({ "w": w,
+                        "neuronLayerOrigin": originLayer,
+                        "neuronLayerTarget": targetLayer,
+                        "weights": weights !== undefined && weights !== null ? weights : null,
+                        "layer_neurons_count": _this.layerNodes[_this.layerNodes.length - 1].length,
+                        "layerNum": _this.graph.layerCount - 1,
+                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "convMatrixId": convMatrixId });
+                }
             };
 
             this.graph.layer_defs = layer_defs;
+            this.offsetX = 0;
 
             var lType = { "input": function input(l) {
-                    cnl(l.depth, l.weights, 1);
+                    var newNeurons = l.out_sx !== undefined ? ml(l.out_sx, l.out_sy, 1, "input", 0, false) : ml(1, l.depth, 1, "input", 0, false);
+
+                    _this.layerNodes.push(newNeurons);
 
                     _this.graph.layerCount++;
+                    _this.offsetX += l.out_sx !== undefined ? 100 : 30;
                 },
                 "fc": function fc(l) {
-                    cnl(l.num_neurons, l.weights, 0);
+                    var newNeurons = ml(1, l.num_neurons, 0, "fc", 0, false);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, _this.layerNodes[_this.layerNodes.length - 1], newNeurons, l.weights, "fc");
+
+                    _this.layerNodes.push(newNeurons);
 
                     _this.graph.layerCount++;
+                    _this.offsetX += 30;
+                },
+                "conv": function conv(l) {
+                    var layerOrig = _this.layerNodes[_this.layerNodes.length - 1];
+
+                    var newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 180);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 0);
+                    _this.layerNodes.push(newNeurons);
+
+                    newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 120);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 1);
+                    _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
+
+                    newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 60);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 2);
+                    _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
+
+                    newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -60);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 3);
+                    _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
+
+                    newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -120);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 4);
+                    _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
+
+                    newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -180);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 5);
+                    _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
+
+                    _this.graph.layerCount++;
+                    _this.offsetX += 100;
                 },
                 "regression": function regression(l) {
                     var offsetZ = -30.0 * (l.num_neurons / 2);
@@ -5636,13 +5724,13 @@ var GBrain = exports.GBrain = function () {
                         }
                     }
                     for (var _n = 0; _n < l.num_neurons; _n++) {
-                        _this.graph.addEfferentNeuron("O" + _this.outputCount, [_this.graph.layerCount * 30, 0.0, offsetZ, 1.0]); // efferent neuron (output)
-                        _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": _this.layers[_this.layers.length - 1],
+                        _this.graph.addEfferentNeuron("O" + _this.outputCount, [_this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
+                        _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": _this.layerNodes[_this.layerNodes.length - 1],
                             "neuron": "O" + _this.outputCount,
-                            "weight": l.weights !== undefined && l.weights !== null ? newWe.slice(0, _this.layers[_this.layers.length - 1].length) : null,
-                            "layer_neurons_count": _this.layers[_this.layers.length - 2].length * _this.layers[_this.layers.length - 1].length,
+                            "weight": l.weights !== undefined && l.weights !== null ? newWe.slice(0, _this.layerNodes[_this.layerNodes.length - 1].length) : null,
+                            "layer_neurons_count": _this.layerNodes[_this.layerNodes.length - 2].length * _this.layerNodes[_this.layerNodes.length - 1].length,
                             "layerNum": _this.graph.layerCount - 1 });
-                        if (l.weights !== undefined && l.weights !== null) newWe = newWe.slice(_this.layers[_this.layers.length - 1].length);
+                        if (l.weights !== undefined && l.weights !== null) newWe = newWe.slice(_this.layerNodes[_this.layerNodes.length - 1].length);
 
                         _this.outputCount++;
                         offsetZ += 30.0;

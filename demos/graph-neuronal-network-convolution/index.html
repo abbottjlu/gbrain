@@ -49,18 +49,18 @@
             <div id="SCEJS"></div>
         </div>
 		<script>
-            var num_inputs = 27; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
+            var num_inputs = 8*8; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
             var num_actions = 5; // 5 possible angles agent can turn
-            var temporal_window = 1; // amount of temporal memory. 0 = agent lives in-the-moment :)
+            var temporal_window = 0; // amount of temporal memory. 0 = agent lives in-the-moment :)
             var network_size = num_inputs*temporal_window + num_actions*temporal_window + num_inputs;
             var layer_defs = [];
-            layer_defs.push({"type": "input", "out_sx": 16, "out_sy": 16, "depth": network_size});
+            layer_defs.push({"type": "input", "out_sx": Math.sqrt(network_size), "out_sy": Math.sqrt(network_size)});
             layer_defs.push({"type": "conv", "activation": "relu"});
-            layer_defs.push({"type": "fc", "num_neurons": 50, "activation": "relu"});
-            layer_defs.push({"type": "fc", "num_neurons": 50, "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
             layer_defs.push({"type": "regression", "num_neurons": num_actions});
 
-            brain = new GBrainRL({
+            var gbrain = new GBrainRL({
                 "num_inputs": num_inputs,
                 "num_actions": num_actions,
                 "temporal_window": temporal_window,
@@ -75,64 +75,25 @@
                 "learning_rate": 0.001, // 0.001 0.0005
                 "layer_defs": layer_defs});
 
-            // convolutions neurons
-            var W = 22, H = 22, nodSep = 5.0;
-            var convM = {};
-            convM["emboss"] = [
-                -2.0,   -1.0,   0.0,
-                -1.0,   1.0,    1.0,
-                0.0,    1.0,    2.0];
-            convM["outline"] = [
-                -1.0,   -1.0,   -1.0,
-                -1.0,   8.0,    -1.0,
-                -1.0,   -1.0,   -1.0];
-            var posInputNeuron = [0.0, 0.0, 0.0, 1.0];
-            var inputNeuron = graph.createXYNeuronsFromImage({  "neuron": "0_",
-                                                                "position": posInputNeuron,
-                                                                "w": W,
-                                                                "h": H});//TODO
+            gbrain.stopLearning();
 
-            var convNeurons;
-            for(var n=0; n < 3; n++) {
-                var posConvNeurons = [posInputNeuron[0]+((W*(n+1))*(nodSep*1.2)), 0.0, posInputNeuron[2]-(H*(nodSep*1.2)), 1.0];
-                convNeurons = graph.createConvXYNeuronsFromXYNeurons({  "position": posConvNeurons,
-                                                                        "w": W-(n*2),
-                                                                        "h": H-(n*2),
-                                                                        "idOrigin": n+"_",
-                                                                        "idTarget": (n+1)+"_",
-                                                                        "activationFunc": 1.0,
-                                                                        "convMatrix": convM["outline"]});
-                graph.layerCount++;//TODO
-            }
-
-            var posNeuronLayer1 = [posInputNeuron[0]+((W*(n+1))*(nodSep*1.2)), 0.0, 0.0, 1.0];
-            var neuronLayer1 = graph.createNeuronLayer(6, 6, posNeuronLayer1);
-
-            graph.connectNeuronLayerWithNeuronLayer({   "neuronLayerOrigin": convNeurons,
-                                                        "neuronLayerTarget": neuronLayer1,
-                                                        "layerNum": graph.layerCount});
-            graph.layerCount++;
-
-            graph.addNeuron("color", [posInputNeuron[0]+((W*(n+2))*(nodSep*1.2)), 0.0, 0.0, 1.0]);
-            graph.connectNeuronLayerWithNeuron({"neuronLayer": neuronLayer1,
-                                                "neuron": "color",
-                                                "layerNum": graph.layerCount});
-
-            graph.createWebGLBuffers();
-
-			//*********
-			// RENDER STAGE
-			//*********
             var render = function() {
-                project.getActiveStage().tick();
+                gbrain.gbrain.tick();
                 requestAnimFrame(render);
-            }
+            };
             render();
 
+            var arr = [ 0,0,0,0,0,0,0,0,
+                        0,1,1,1,1,1,1,0,
+                        0,0,0,0,0,0,1,0,
+                        0,0,0,0,0,0,1,0,
+                        0,0,1,1,1,1,1,0,
+                        0,0,0,0,0,0,1,0,
+                        0,1,1,1,1,1,1,0,
+                        0,0,0,0,0,0,0,0];
+            gbrain.forward([arr], function(actionix) {
 
-			window.onresize = (function() {
-				//sce.setDimensions(512, 128);
-		    }).bind(this);
+            });
 		</script>
 
 
@@ -196,7 +157,7 @@
                 });
                 img.src = url;
             };
-            loadImgL("house-00.jpg");
+            //loadImgL("house-00.jpg");
 
             var loadImg = function() {
                 elem_fgColor.innerHTML = "Loading image...";

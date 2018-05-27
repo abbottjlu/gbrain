@@ -630,6 +630,13 @@ export class Graph {
 
         this.updateNodes();
         this.updateLinks();
+
+        this.comp_renderer_nodes.setArg("enableTrain", () => {return 1.0;});
+        this.comp_renderer_nodes.gpufG.enableKernel(1);
+        this.comp_renderer_nodes.setArg("currentTrainLayer", () => {return -10.0;});
+        this._sce.getLoadedProject().getActiveStage().tick();
+        this.comp_renderer_nodes.gpufG.disableKernel(1);
+        this.comp_renderer_nodes.setArg("enableTrain", () => {return 0.0;});
     };
 
     mouseDown() {
@@ -938,7 +945,7 @@ export class Graph {
                 let position = [pos[0]+((x-(numX/2))*nodSep), pos[1], pos[2]+((y-(numY/2))*nodSep), pos[3]];
 
                 if(isInput !== undefined && isInput !== null && isInput === 1) {
-                    let name = "I"+this.currentNeuron.toString();
+                    let name = (numX === 1) ? "I"+this.currentNeuron.toString() : this.layerCount.toString()+x+"_"+y;
                     this.addNeuron(name, position);
                     arr.push(name);
                     this.currentNeuron++;
@@ -967,55 +974,95 @@ export class Graph {
 
     /**
      * @param {Object} jsonIn
-     * @param {String} jsonIn.neuron
-     * @param {Array<number>} jsonIn.position
      * @param {int} jsonIn.w
-     * @param {int} jsonIn.h
+     * @param {Array<int>} jsonIn.neuronLayerOrigin
+     * @param {Array<int>} jsonIn.neuronLayerTarget
+     * @param {number|null|Array<number>} [jsonIn.weight]
+     * @param {int} [jsonIn.layer_neurons_count]
+     * @param {number} [jsonIn.multiplier=1.0]
+     * @param {int} jsonIn.layerNum
+     * @param {int} jsonIn.hasBias
+     * @param {int} jsonIn.convMatrixId
      */
-    createXYNeuronsFromImage(jsonIn) {
-        let arr = [];
-        for(let x=0; x < jsonIn.w; x++) {
-            for(let y=0; y < jsonIn.h; y++) {
-                let position = [jsonIn.position[0]+((y-(jsonIn.w/2))*this.nodSep), jsonIn.position[1], jsonIn.position[2]+((x-(jsonIn.h/2))*this.nodSep), jsonIn.position[3]];
+    connectConvXYNeuronsFromXYNeurons(jsonIn) {
+        let convMatrix = {};
+        convMatrix[0] = [ // emboss
+            -2.0,   -1.0,   0.0,
+            -1.0,   1.0,    1.0,
+            0.0,    1.0,    2.0];
+        convMatrix[1] = [ // bottom sobel
+            -1.0,   -2.0,   -1.0,
+            0.0,   0.0,    0.0,
+            1.0,    2.0,    1.0];
+        convMatrix[2] = [ // left sobel
+            1.0,   0.0,   -1.0,
+            2.0,   0.0,    -2.0,
+            1.0,   0.0,    -1.0];
+        convMatrix[3] = [ // outline
+            -1.0,   -1.0,   -1.0,
+            -1.0,   8.0,    -1.0,
+            -1.0,    -1.0,    -1.0];
+        convMatrix[4] = [ // right sobel
+            -1.0,   0.0,   1.0,
+            -2.0,   0.0,   2.0,
+            -1.0,   0.0,   1.0];
+        convMatrix[5] = [ // sharpen
+            0.0,   -1.0,   0.0,
+            -1.0,   5.0,   -1.0,
+            0.0,    -1.0,  0.0];
 
-                this.addNeuron(jsonIn.neuron+x+"_"+y, position);
-                arr.push(jsonIn.neuron+x+"_"+y);
+        let idds = [{x:-1, y:-1},
+                    {x:0,  y:-1},
+                    {x:1,  y:-1},
+                    {x:-1, y:0},
+                    {x:0,  y:0},
+                    {x:1,  y:0},
+                    {x:-1, y:1},
+                    {x:0,  y:1},
+                    {x:1,  y:1}];
+
+        let arr = [];
+        let xT = 0;
+        let yT = 0;
+        let xO = 1;
+        let yO = 1;
+        for(let n=0; n < ((jsonIn.hasBias === 1.0) ? jsonIn.neuronLayerTarget.length-1 : jsonIn.neuronLayerTarget.length); n++) {
+            if(xT === jsonIn.w) {
+                xT = 0;
+                yT++;
+                xO = 1;
+                yO++;
+            } else {
+                xT++;
+                xO++;
             }
-        }
 
-        return arr;
-    };
+            //let idT = (yT*jsonIn.w)+xT;
 
-    /**
-     * @param {Object} jsonIn
-     * @param {Array<number>} jsonIn.position
-     * @param {int} jsonIn.w
-     * @param {int} jsonIn.h
-     * @param {String} jsonIn.idOrigin
-     * @param {String} jsonIn.idTarget
-     * @param {int} jsonIn.activationFunc
-     * @param {Array<number>} jsonIn.convMatrix
-     */
-    createConvXYNeuronsFromXYNeurons(jsonIn) {
-        let arr = [];
-        for(let x=0; x < jsonIn.w-2; x++) {
-            for(let y=0; y < jsonIn.h-2; y++) {
-                let position = [jsonIn.position[0]+((y-(jsonIn.w/2))*this.nodSep), jsonIn.position[1], jsonIn.position[2]+((x-(jsonIn.h/2))*this.nodSep), jsonIn.position[3]];
+            let idConvM = 0;
+            for(let nb=0; nb < idds.length; nb++) {
+                let xOf = xO+idds[nb].x;
+                let yOf = yO+idds[nb].y;
 
-                this.addNeuron(jsonIn.idTarget+x+"_"+y, position);
-                arr.push(jsonIn.idTarget+x+"_"+y);
+                let idO = (yOf*(jsonIn.w+2))+xOf;
 
-                let idConvM = 0;
-                for(let xa=x; xa < x+3; xa++) {
-                    for(let ya=y; ya < y+3; ya++) {
-                        this.addSinapsis({  "neuronNameA": jsonIn.idOrigin+xa+"_"+ya,
-                                            "neuronNameB": jsonIn.idTarget+x+"_"+y,
-                                            "activationFunc": jsonIn.activationFunc,
-                                            "multiplier": jsonIn.convMatrix[idConvM],
-                                            "layerNum": 0}); //TODO layerNum
-                        idConvM++;
-                    }
-                }
+                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
+                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                                    "activationFunc": jsonIn.activationFunc,
+                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                    "layer_neurons_count": jsonIn.layer_neurons_count,
+                                    "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
+                                    "layerNum": jsonIn.layerNum});
+                idConvM++;
+            }
+            if(jsonIn.hasBias === 1.0) {
+                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length-1].toString(),
+                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                                    "activationFunc": jsonIn.activationFunc,
+                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                    "layer_neurons_count": jsonIn.layer_neurons_count,
+                                    "multiplier": jsonIn.multiplier,
+                                    "layerNum": jsonIn.layerNum});
             }
         }
 
@@ -2411,24 +2458,24 @@ export class Graph {
             let idx = pixel*4;
 
             this.arrAdjMatrix[idx] = layerNum;
-            this.arrAdjMatrix[idx+1] = 0.0;
+            this.arrAdjMatrix[idx+1] = 0.0; // weightQuadSum
             this.arrAdjMatrix[idx+2] = ((columnAsParent===true)?0.0:weight);
             this.arrAdjMatrix[idx+3] = ((columnAsParent===true)?1.0:0.5); // columnAsParent=1.0;
 
-            this.arrAdjMatrixB[idx] = linkMultiplier; // not used here
-            this.arrAdjMatrixB[idx+1] = activationFunc; // not used here
+            this.arrAdjMatrixB[idx] = 0.0; // weightAbsSum
+            this.arrAdjMatrixB[idx+1] = 0.0; // costA
             this.arrAdjMatrixB[idx+2] = nodeId;
             this.arrAdjMatrixB[idx+3] = nodeIdInv;
 
-            this.arrAdjMatrixC[idx] = 0.0;
-            this.arrAdjMatrixC[idx+1] = 0.0;
-            this.arrAdjMatrixC[idx+2] = 0.0;
-            this.arrAdjMatrixC[idx+3] = 0.0;
+            this.arrAdjMatrixC[idx] = 0.0; // costB
+            this.arrAdjMatrixC[idx+1] = 0.0; // costC
+            this.arrAdjMatrixC[idx+2] = 0.0; // costD
+            this.arrAdjMatrixC[idx+3] = 0.0; // costE
 
-            this.arrAdjMatrixD[idx] = 0.0;
-            this.arrAdjMatrixD[idx+1] = 0.0;
-            this.arrAdjMatrixD[idx+2] = 0.0;
-            this.arrAdjMatrixD[idx+3] = 0.0;
+            this.arrAdjMatrixD[idx] = 0.0; // costF
+            this.arrAdjMatrixD[idx+1] = 0.0; // costG
+            this.arrAdjMatrixD[idx+2] = linkMultiplier;
+            this.arrAdjMatrixD[idx+3] = activationFunc;
         };
 
         this.arrAdjMatrix = new Float32Array(this._ADJ_MATRIX_WIDTH*this._ADJ_MATRIX_WIDTH*4);
