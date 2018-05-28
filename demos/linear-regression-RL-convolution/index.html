@@ -87,8 +87,8 @@
             var layer_defs = [];
             layer_defs.push({"type": "input", "out_sx": Math.sqrt(network_size), "out_sy": Math.sqrt(network_size)});
             layer_defs.push({"type": "conv", "activation": "relu"});
-            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
-            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 80, "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 80, "activation": "relu"});
             layer_defs.push({"type": "regression", "num_neurons": num_actions});
 
             var gbrain = new GBrainRL({
@@ -109,6 +109,28 @@
             //gbrain.stopLearning();
 
             var render = function() {
+                //simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[3] = 0;
+                simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[7] = 0;
+                simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[11] += 1;
+
+                if(simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[11] > 11.0) {
+                    simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[3] = (Math.random()*6)-3;
+                    simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).mModelMatrix_Position.e[11] = -10;
+
+                    simpleCamera.comp_transformTarget.setPositionTarget($V3([0.0, 0.0, 0.0]));
+                    simpleCamera.comp_transformTarget.setPositionGoal($V3([0.0, 0.0, 0.0]).add($V3([0.0, 0.0, 10.0])));
+                }
+
+                let npos = simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).getPosition();
+                let cpos = simpleCamera.comp_transformTarget.getPositionGoal();
+                let dif = npos.distance(cpos);
+                if(dif < 3)
+                    simpleNode.setImage("../_RESOURCES/red.jpg");
+                else
+                    simpleNode.setImage("../_RESOURCES/white.jpg");
+
+
+
                 project.getActiveStage().tick();
 
                 var heightImageResult = new Uint8Array(w*h*4);
@@ -132,19 +154,35 @@
                         imgB.style.width = "80px";
                         imgB.style.height = "80px";
                         var ad = [];
+                        var rew = 0;
                         for(var x=0; x < inputW; x++) {
                             for(var y=0; y < inputH; y++) {
                                 var ww = 1;
                                 var hh = 1;
                                 var id = (((y*hh)*inputW)+(x*ww))*4;
                                 ad.push(uimg[id]/255);
+
+                                if(uimg[id] > 0 && uimg[id+1] === 0 && uimg[id+2] === 0)
+                                    rew += -1.0;
+                                if(uimg[id] > 0 && uimg[id+1] > 0 && uimg[id+2] > 0)
+                                    rew += 1.0;
                             }
                         }
+                        rew /= inputW*inputH;
 
-                        gbrain.forward([ad], function(actionix) {
-                            gbrain.gbrain.tick();
-                            requestAnimFrame(render);
-                        });
+                        gbrain.backward(rew, (function (loss) {
+                            gbrain.forward([ad], function(actionix) {
+                                let dir = (actionix[0] === 0)
+                                    ? simpleCamera.comp_transformTarget.getPositionTarget().add($V3([0.1, 0.0, 0.0]))
+                                    : simpleCamera.comp_transformTarget.getPositionTarget().add($V3([-0.1, 0.0, 0.0]));
+
+                                simpleCamera.comp_transformTarget.setPositionTarget(dir);
+                                simpleCamera.comp_transformTarget.setPositionGoal(dir.add($V3([0.0, 0.0, 10.0])));
+
+                                gbrain.gbrain.tick();
+                                requestAnimFrame(render);
+                            });
+                        }).bind(this));
                     });
                 });
             };

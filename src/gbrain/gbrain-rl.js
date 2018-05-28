@@ -212,6 +212,7 @@ export class GBrainRL {
         if(jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) {
             this.gbrain = new GBrain({  "target": target.querySelector("#el_gbrainDisplay"),
                 "dimensions": {"width": 500, "height": 500},
+                "enableUI": true,
                 "batch_repeats": jsonIn.batch_repeats,
                 "learning_rate": jsonIn.learning_rate});
             this.gbrain.makeLayers(jsonIn.layer_defs);
