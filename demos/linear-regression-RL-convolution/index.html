@@ -1,0 +1,154 @@
+<html>
+	<head>
+		<title>GBrain linear regression RL convolution</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+        <!--<script src="../../dist/scejs/SCEJS.min.js"></script>-->
+
+        <script src="../../dist/gbrain/Graph.class.js"></script>
+        <script src="../../dist/gbrain/KERNEL_DIR.class.js"></script>
+        <script src="../../dist/gbrain/KERNEL_ADJMATRIX_UPDATE.class.js"></script>
+        <script src="../../dist/gbrain/VFP_NODE.class.js"></script>
+        <script src="../../dist/gbrain/VFP_NODEPICKDRAG.class.js"></script>
+        <script src="../../dist/gbrain/ProccessImg.class.js"></script>
+        <script src="../../dist/gbrain/gbrain.js"></script>
+        <script src="../../dist/gbrain/gbrain-rl.js"></script>
+
+
+        <script src="../_RESOURCES/SCEJS.min.js"></script>
+
+        <script>
+            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+                m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+            })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+            ga('create', 'UA-3687403-4', 'auto');
+            ga('send', 'pageview');
+
+        </script>
+	</head>
+
+	<body>
+        <div style="width:20%;display:inline-block">
+            <div id="SCEJS"></div>
+            <div id='elem_bgColor'></div>
+        </div>
+		<script>
+		    var w = 512;
+		    var h = 512;
+            var inputW = 8;
+            var inputH = 8;
+
+            var sce = new SCE();
+            sce.initialize({"target": document.getElementById("SCEJS"),
+                "dimensions": {"width": w, "height": h}});
+
+
+            var project = new Project();
+            sce.loadProject(project);
+
+            var stage = new Stage();
+            project.addStage(stage);
+            project.setActiveStage(stage);
+
+            // CAMERA
+            var simpleCamera = new SimpleCamera(sce);
+
+            // GRID
+            //var grid = new Grid(sce);
+            //grid.generate(100.0, 1.0);
+
+
+            // NODE
+            var simpleNode = new SimpleNode(sce);
+
+            var mesh = new Mesh().loadBox();
+            simpleNode.setMesh(mesh);
+            simpleNode.setImage("../_RESOURCES/white.jpg");
+
+
+
+            window.onresize = (function() {
+                //sce.setDimensions(512, 128);
+            }).bind(this);
+
+
+
+
+
+
+
+
+            var num_inputs = inputW*inputH; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
+            var num_actions = 2; // 5 possible angles agent can turn
+            var temporal_window = 0; // amount of temporal memory. 0 = agent lives in-the-moment :)
+            var network_size = num_inputs*temporal_window + num_actions*temporal_window + num_inputs;
+            var layer_defs = [];
+            layer_defs.push({"type": "input", "out_sx": Math.sqrt(network_size), "out_sy": Math.sqrt(network_size)});
+            layer_defs.push({"type": "conv", "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
+            layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
+            layer_defs.push({"type": "regression", "num_neurons": num_actions});
+
+            var gbrain = new GBrainRL({
+                "num_inputs": num_inputs,
+                "num_actions": num_actions,
+                "temporal_window": temporal_window,
+                "experience_size": 30000,
+                "gamma": 0.7,
+                "learning_steps_total": 200000,
+                "learning_steps_burnin": 100,
+                "epsilon_min": 0.05,
+                "epsilon_test_time": 0.05,
+                "start_learn_threshold": 0,
+                "batch_repeats": 1, // 1*7 (1batch_repeats=7gpu training sets)
+                "learning_rate": 0.01, // 0.001 0.0005
+                "layer_defs": layer_defs});
+
+            //gbrain.stopLearning();
+
+            var render = function() {
+                project.getActiveStage().tick();
+
+                var heightImageResult = new Uint8Array(w*h*4);
+                stage.getWebGLContext().readPixels(0, 0, w, h, stage.getWebGLContext().RGBA, stage.getWebGLContext().UNSIGNED_BYTE, heightImageResult);
+
+                //var uint8arr = simpleCamera.comp_screenEffects.gpufG.readArg("RGB");
+                var canvas = Utils.getCanvasFromUint8Array(heightImageResult, w, h);
+
+                new Utils().getImageFromCanvas(canvas, function(img) {
+                    var canvasB = document.createElement('canvas');
+                    canvasB.width = inputW;
+                    canvasB.height = inputH;
+                    var imgCtx = canvasB.getContext('2d');
+                    imgCtx.drawImage(img, 0, 0, inputW, inputH);
+
+                    new Utils().getImageFromCanvas(canvasB, function(imgB) {
+                        document.getElementById("elem_bgColor").innerHTML = "";
+                        document.getElementById("elem_bgColor").appendChild(imgB);
+
+                        var uimg = Utils.getUint8ArrayFromHTMLImageElement(imgB);
+                        imgB.style.width = "80px";
+                        imgB.style.height = "80px";
+                        var ad = [];
+                        for(var x=0; x < inputW; x++) {
+                            for(var y=0; y < inputH; y++) {
+                                var ww = 1;
+                                var hh = 1;
+                                var id = (((y*hh)*inputW)+(x*ww))*4;
+                                ad.push(uimg[id]/255);
+                            }
+                        }
+
+                        gbrain.forward([ad], function(actionix) {
+                            gbrain.gbrain.tick();
+                            requestAnimFrame(render);
+                        });
+                    });
+                });
+            };
+            render();
+		</script>
+	</body>
+</html>

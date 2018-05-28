@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>SCEJS ConvNeuronalNetwork</title>
+		<title>GBrain classification softmax</title>
 		<meta http-equiv="content-type" content="text/html; charset=utf-8">
 
         <!--<script src="../../dist/scejs/SCEJS.min.js"></script>-->
@@ -13,6 +13,9 @@
         <script src="../../dist/gbrain/ProccessImg.class.js"></script>
         <script src="../../dist/gbrain/gbrain.js"></script>
         <script src="../../dist/gbrain/gbrain-rl.js"></script>
+
+
+        <script src="../_RESOURCES/SCEJS.min.js"></script>
 
         <script>
             (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -28,17 +31,8 @@
 
 	<body>
         <div style="width:20%;display:inline-block">
-            T for top view<br />
-            Alt+LeftMouse for Orbit<br />
-            Alt+MiddleMouse for Pan<br />
-            P for perspective view<br />
-            WASD for to move<br />
-            <br />
-
-            [-1.0,1.0] = [0,255] = [<span style='background-color:red'>_</span>,<span style='background-color:green'>_</span>] <br />
-            <div id='elem_bgColor' style='width:150px;height:150px;border:2px solid #333;text-align: center;'>
-                <div id='elem_fgColor'>SCEJS</div>
-            </div>
+            <div id="SCEJS"></div>
+            <div id='elem_bgColor'></div>
 
             <button id="BTNID_AFFERENCEDATA">random input data</button> <br />
             <button id="BTNID_EFFERENCEDATA0">train animal</button> <br />
@@ -46,11 +40,23 @@
             <!--<button id="BTNID_NETWORKSTEP">network step</button> <br />-->
         </div>
         <div style="width:79%;display:inline-block">
-            <div id="SCEJS"></div>
+
         </div>
 		<script>
-            var num_inputs = 8*8; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
-            var num_actions = 5; // 5 possible angles agent can turn
+		    var w = 512;
+		    var h = 512;
+            var inputW = 8;
+            var inputH = 8;
+
+
+            // DEMO NOT READY                           // DEMO NOT READY
+            // DEMO NOT READY
+            // DEMO NOT READY
+            // DEMO NOT READY
+
+
+            var num_inputs = inputW*inputH; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
+            var num_actions = 2; // 5 possible angles agent can turn
             var temporal_window = 0; // amount of temporal memory. 0 = agent lives in-the-moment :)
             var network_size = num_inputs*temporal_window + num_actions*temporal_window + num_inputs;
             var layer_defs = [];
@@ -70,12 +76,12 @@
                 "learning_steps_burnin": 100,
                 "epsilon_min": 0.05,
                 "epsilon_test_time": 0.05,
-                "start_learn_threshold": 500,
+                "start_learn_threshold": 0,
                 "batch_repeats": 1, // 1*7 (1batch_repeats=7gpu training sets)
-                "learning_rate": 0.001, // 0.001 0.0005
+                "learning_rate": 0.01, // 0.001 0.0005
                 "layer_defs": layer_defs});
 
-            gbrain.stopLearning();
+            //gbrain.stopLearning();
 
             var render = function() {
                 gbrain.gbrain.tick();
@@ -106,19 +112,23 @@
             }).bind(this));
 
             document.getElementById("BTNID_EFFERENCEDATA0").addEventListener("click", (function() {
-                graph.setEfferentData({ "data": [0.0],
-                                        "onLearned": (function(output) { // output[3] = error
+                elem_fgColor.innerHTML += "<br />train animal";
 
-                                        }).bind(this)});
-                elem_fgColor.innerHTML = "animal";
+                let rew = (hy === 0) ? [{dim: 0, val: 1.0}] : [{dim: 1, val: -1.0}];
+                gbrain.backward(rew, (function (loss) {
+                    loadImg();
+                }).bind(this));
             }).bind(this));
             document.getElementById("BTNID_EFFERENCEDATA1").addEventListener("click", (function() {
-                graph.setEfferentData({ "data": [1.0],
-                                        "onLearned": (function(output) { // output[3] = error
+                elem_fgColor.innerHTML += "<br />train house";
 
-                                        }).bind(this)});
-                elem_fgColor.innerHTML = "house";
+                let rew = (hy === 1) ? [{dim: 1, val: 1.0}] : [{dim: 0, val: -1.0}];
+                gbrain.backward(rew, (function (loss) {
+                    loadImg();
+                }).bind(this));
             }).bind(this));
+
+
 
 
             var inputImage = function(img) {
@@ -128,27 +138,32 @@
                 thumb.height = 60;
                 elem_fgColor.appendChild(thumb);
 
-                var arr = new Utils().getUint8ArrayFromHTMLImageElement(img);
+                var arr = Utils.getUint8ArrayFromHTMLImageElement(img);
                 console.log(arr.length);
-                var ad = {};
-                for(var x=0; x < W; x++) {
-                    for(var y=0; y < H; y++) {
-                        var ww = parseInt(img.width/W);
-                        var hh = parseInt(img.height/H);
+                var ad = [];
+                for(var x=0; x < inputW; x++) {
+                    for(var y=0; y < inputH; y++) {
+                        var ww = parseInt(img.width/inputW);
+                        var hh = parseInt(img.height/inputH);
                         var id = (((y*hh)*img.width)+(x*ww))*4;
-                        ad["0_"+y+"_"+x] = (arr[id]/255);
+                        ad.push(arr[id]/255);
                     }
                 }
-                ad["efferentNeuron"] = ["color"];
-                ad["onAction"] = (function(data) {
-                    /*console.log("W output: %O", data.color.output);
-                    if(data.color.output < 0.0)
-                        elem_fgColor.innerHTML += "animal";
-                    else
-                        elem_fgColor.innerHTML += "house";*/
-                }).bind(this);
 
-                graph.setAfferentData(ad);
+                gbrain.forward([ad], function(data) {
+                    console.log("action: "+data[0]);
+
+                    if(data[0] === 1)
+                        elem_fgColor.innerHTML += "<br />predicted: animal";
+                    else if(data[0] === 0)
+                        elem_fgColor.innerHTML += "<br />predicted: house";
+
+                    hy = data[0];
+
+                    (idu === 0)
+                        ? document.getElementById("BTNID_EFFERENCEDATA0").click()
+                        : document.getElementById("BTNID_EFFERENCEDATA1").click();
+                });
             };
             var loadImgL = function(url) {
                 var img = new Image();
@@ -157,15 +172,17 @@
                 });
                 img.src = url;
             };
-            //loadImgL("house-00.jpg");
+            loadImgL("house-00.jpg");
 
+            var hy = null;
+            var idu = 1;
             var loadImg = function() {
-                elem_fgColor.innerHTML = "Loading image...";
+                elem_fgColor.innerHTML += "<br />Loading new image...";
 
-                var urls = ["http://www.image-net.org/api/text/imagenet.synset.geturls?wnid=n02084071",
-                    "http://www.image-net.org/api/text/imagenet.synset.geturls?wnid=n03544360"];
+                var urls = ["http://www.image-net.org/api/text/imagenet.synset.geturls?wnid=n02084071", // dogs
+                    "http://www.image-net.org/api/text/imagenet.synset.geturls?wnid=n03544360"]; // houses
                 var req = new XMLHttpRequest();
-                var idu = Math.round(Math.random());
+                idu = Math.round(Math.random());
                 req.open("GET", urls[idu], true);
                 req.responseType = "blob";
                 req.onload = (function(onload) {
