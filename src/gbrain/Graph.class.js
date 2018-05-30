@@ -45,6 +45,7 @@ export class Graph {
         this.maxacts = [];
         this.afferentNodesCount = 0;
         this.efferentNodesCount = 0;
+        this.lett = ["A","B","C","D","E","F","G"];
         this.trainTickCount = 0;
         this.onAction = null;
         this.onTrained = null;
@@ -465,20 +466,13 @@ export class Graph {
             };
         let aC = (this.afferentNodesCount === 0) ? 1: this.afferentNodesCount;
         let eC = (this.efferentNodesCount === 0) ? 1: this.efferentNodesCount;
-        varDef_VFPNode['float afferentNodesA['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesA['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesB['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesB['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesC['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesC['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesD['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesD['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesE['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesE['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesF['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesF['+eC+']'] = () => {return null;};
-        varDef_VFPNode['float afferentNodesG['+aC+']'] = () => {return null;};
-        varDef_VFPNode['float efferentNodesG['+eC+']'] = () => {return null;};
+        let arrUniformsCount = Math.ceil(aC/64);
+        for(let n=0; n < this.lett.length; n++) {
+            for(let nb=0; nb < arrUniformsCount; nb++)
+                varDef_VFPNode['float afferentNodes'+this.lett[n]+nb+'[64]'] = () => {return null;};
+
+            varDef_VFPNode['float efferentNodes'+this.lett[n]+'['+eC+']'] = () => {return null;};
+        }
 
         if(this.layout.argsDirection !== undefined && this.layout.argsDirection !== null) {
             for(let n=0; n < this.layout.argsDirection.length; n++)
@@ -1263,18 +1257,17 @@ export class Graph {
      */
     forward(jsonIn) {
         this.onAction = jsonIn.onAction;
-        let lett = ["A","B","C","D","E","F","G"];
         let loc = [["dataB",2],["dataF",0],["dataF",2],["dataG",0],["dataG",2],["dataH",0],["dataH",2]];
 
         this.comp_renderer_nodes.setArg("freezeOutput", () => {return 0.0;});
 
         // reset reward
         let reward = [];
-        for(let n=0; n < this.afferentNodesCount*this.gpu_batch_size; n++)
+        for(let n=0; n < this.efferentNodesCount*this.gpu_batch_size; n++)
             reward[n] = 0.0;
 
         for(let n=0; n < this.gpu_batch_size; n++) {
-            this.comp_renderer_nodes.setArg("efferentNodes"+lett[n], () => {return reward.slice(0, this.efferentNodesCount);});
+            this.comp_renderer_nodes.setArg("efferentNodes"+this.lett[n], () => {return reward.slice(0, this.efferentNodesCount);});
             reward = reward.slice(this.efferentNodesCount);
         }
 
@@ -1287,8 +1280,19 @@ export class Graph {
             for(let n=stateSet.length; n < this.afferentNodesCount*this.gpu_batch_size; n++)
                 stateSet[n] = 0.0;
 
+
+
             for(let n=0; n < this.gpu_batch_size; n++) {
-                this.comp_renderer_nodes.setArg("afferentNodes"+lett[n], () => {return stateSet.slice(0, this.afferentNodesCount);});
+                let ts = stateSet.slice(0, this.afferentNodesCount);
+
+                let arrUniformsCount = Math.ceil(this.afferentNodesCount/64);
+                let d = Utils.fract(this.afferentNodesCount/64);
+                d = (d === 0.0) ? 64 : d*64;
+                for(let nb=0; nb < arrUniformsCount; nb++) {
+                    let cut = (nb === arrUniformsCount-1) ? d : 64;
+                    this.comp_renderer_nodes.setArg("afferentNodes"+this.lett[n]+nb, () => {return ts.slice(0, cut);});
+                    ts = ts.slice(cut);
+                }
                 stateSet = stateSet.slice(this.afferentNodesCount);
             }
 
@@ -1368,7 +1372,6 @@ export class Graph {
      */
     train(jsonIn) {
         this.onTrained = jsonIn.onTrained;
-        let lett = ["A","B","C","D","E","F","G"];
 
         // softmax regression
         /*let cost = 0.0;
@@ -1462,7 +1465,7 @@ export class Graph {
             }
             // send
             for(let n=0; n < this.gpu_batch_size; n++) {
-                this.comp_renderer_nodes.setArg("efferentNodes"+lett[n], () => {return dd.slice(0, this.efferentNodesCount);});
+                this.comp_renderer_nodes.setArg("efferentNodes"+this.lett[n], () => {return dd.slice(0, this.efferentNodesCount);});
                 dd = dd.slice(this.efferentNodesCount);
             }
 
@@ -2318,20 +2321,14 @@ export class Graph {
         this.comp_renderer_nodes.setArg("efferentNodesCount", () => {return this.efferentNodesCount;});
         this.comp_renderer_nodes.setArg("efferentStart", () => {return this.currentNodeId-this.efferentNodesCount;});
 
-        this.comp_renderer_nodes.setArg("afferentNodesA", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesA", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesB", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesB", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesC", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesC", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesD", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesD", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesE", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesE", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesF", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesF", () => {return new Float32Array(this.efferentNodesCount);});
-        this.comp_renderer_nodes.setArg("afferentNodesG", () => {return new Float32Array(this.afferentNodesCount);});
-        this.comp_renderer_nodes.setArg("efferentNodesG", () => {return new Float32Array(this.efferentNodesCount);});
+        let arrUniformsCount = Math.ceil(this.afferentNodesCount/64);
+        for(let n=0; n < this.lett.length; n++) {
+            for(let nb=0; nb < arrUniformsCount; nb++)
+                this.comp_renderer_nodes.setArg("afferentNodes"+this.lett[n]+nb, () => {return new Float32Array(64);});
+
+            this.comp_renderer_nodes.setArg("efferentNodes"+this.lett[n], () => {return new Float32Array(this.efferentNodesCount);});
+        }
+
         this.comp_renderer_nodes.setArg("isNode", () => {return 1;});
         this.comp_renderer_nodes.setArg("bufferNodesWidth", () => {return this.comp_renderer_nodes.getBuffers()["posXYZW"].W;});
 

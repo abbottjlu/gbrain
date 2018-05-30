@@ -217,25 +217,33 @@ export class KERNEL_DIR {
     };
 
     static efferentNodesStr(afferentNodesCount, efferentStart, efferentNodesCount) {
+        let arrUniformsCount = Math.ceil(afferentNodesCount/64);
         /////////////////////////////////////////////////
         // OUTPUT
         /////////////////////////////////////////////////
         let str = `
             if(freezeOutput == 0.0) {
                 if(nodeId < afferentNodesCount) {
-                    for(float n=0.0; n < 1024.0; n+=1.0) {
+                    for(float n=0.0; n < 256.0; n+=1.0) {
                         if(n >= afferentNodesCount) {
                             break;
                         }
-                        if(nodeId == n) {
-                            foutputA = afferentNodesA[int(n)];
-                            foutputB = afferentNodesB[int(n)];
-                            foutputC = afferentNodesC[int(n)];
-                            foutputD = afferentNodesD[int(n)];
-                            foutputE = afferentNodesE[int(n)];
-                            foutputF = afferentNodesF[int(n)];
-                            foutputG = afferentNodesG[int(n)];
-                            break;
+                        if(nodeId == n) {`;
+                            for(let n=arrUniformsCount-1; n >= 0; n--) {
+                                let cond = (n===arrUniformsCount-1) ? "if" : "else if" ;
+                                str += `
+                                ${cond}(nodeId >= `+(n*64).toFixed(1)+`) {
+                                    foutputA = afferentNodesA`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputB = afferentNodesB`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputC = afferentNodesC`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputD = afferentNodesD`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputE = afferentNodesE`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputF = afferentNodesF`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    foutputG = afferentNodesG`+n+`[int(n-(${(n*64).toFixed(1)}))];
+                                    
+                                }`;
+                            }
+        str += `            break;
                         }
                     }
                 } else {

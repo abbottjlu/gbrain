@@ -1478,6 +1478,7 @@ var Graph = exports.Graph = function () {
         this.maxacts = [];
         this.afferentNodesCount = 0;
         this.efferentNodesCount = 0;
+        this.lett = ["A", "B", "C", "D", "E", "F", "G"];
         this.trainTickCount = 0;
         this.onAction = null;
         this.onTrained = null;
@@ -2024,60 +2025,28 @@ var Graph = exports.Graph = function () {
             };
             var aC = this.afferentNodesCount === 0 ? 1 : this.afferentNodesCount;
             var eC = this.efferentNodesCount === 0 ? 1 : this.efferentNodesCount;
-            varDef_VFPNode['float afferentNodesA[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesA[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesB[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesB[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesC[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesC[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesD[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesD[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesE[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesE[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesF[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesF[' + eC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float afferentNodesG[' + aC + ']'] = function () {
-                return null;
-            };
-            varDef_VFPNode['float efferentNodesG[' + eC + ']'] = function () {
-                return null;
-            };
+            var arrUniformsCount = Math.ceil(aC / 64);
+            for (var n = 0; n < this.lett.length; n++) {
+                for (var nb = 0; nb < arrUniformsCount; nb++) {
+                    varDef_VFPNode['float afferentNodes' + this.lett[n] + nb + '[64]'] = function () {
+                        return null;
+                    };
+                }varDef_VFPNode['float efferentNodes' + this.lett[n] + '[' + eC + ']'] = function () {
+                    return null;
+                };
+            }
 
             if (this.layout.argsDirection !== undefined && this.layout.argsDirection !== null) {
-                for (var n = 0; n < this.layout.argsDirection.length; n++) {
-                    varDef_VFPNode[this.layout.argsDirection[n]] = function () {
+                for (var _n = 0; _n < this.layout.argsDirection.length; _n++) {
+                    varDef_VFPNode[this.layout.argsDirection[_n]] = function () {
                         return null;
                     };
                 }
             }
 
             if (this.layout.argsObject !== undefined && this.layout.argsObject !== null) {
-                for (var _n = 0; _n < this.layout.argsObject.length; _n++) {
-                    varDef_VFPNode[this.layout.argsObject[_n]] = function () {
+                for (var _n2 = 0; _n2 < this.layout.argsObject.length; _n2++) {
+                    varDef_VFPNode[this.layout.argsObject[_n2]] = function () {
                         return null;
                     };
                 }
@@ -3006,7 +2975,6 @@ var Graph = exports.Graph = function () {
             var _this5 = this;
 
             this.onAction = jsonIn.onAction;
-            var lett = ["A", "B", "C", "D", "E", "F", "G"];
             var loc = [["dataB", 2], ["dataF", 0], ["dataF", 2], ["dataG", 0], ["dataG", 2], ["dataH", 0], ["dataH", 2]];
 
             this.comp_renderer_nodes.setArg("freezeOutput", function () {
@@ -3015,10 +2983,10 @@ var Graph = exports.Graph = function () {
 
             // reset reward
             var reward = [];
-            for (var n = 0; n < this.afferentNodesCount * this.gpu_batch_size; n++) {
+            for (var n = 0; n < this.efferentNodesCount * this.gpu_batch_size; n++) {
                 reward[n] = 0.0;
-            }for (var _n2 = 0; _n2 < this.gpu_batch_size; _n2++) {
-                this.comp_renderer_nodes.setArg("efferentNodes" + lett[_n2], function () {
+            }for (var _n3 = 0; _n3 < this.gpu_batch_size; _n3++) {
+                this.comp_renderer_nodes.setArg("efferentNodes" + this.lett[_n3], function () {
                     return reward.slice(0, _this5.efferentNodesCount);
                 });
                 reward = reward.slice(this.efferentNodesCount);
@@ -3026,40 +2994,58 @@ var Graph = exports.Graph = function () {
 
             this.maxacts = [];
             var state = jsonIn.state.slice(0);
+            for (var r = 0; r < this.batch_repeats; r++) {
+                var stateSet = state.slice(0, this.afferentNodesCount * this.gpu_batch_size);
 
-            var _loop = function _loop(r) {
-                var stateSet = state.slice(0, _this5.afferentNodesCount * _this5.gpu_batch_size);
+                for (var _n4 = stateSet.length; _n4 < this.afferentNodesCount * this.gpu_batch_size; _n4++) {
+                    stateSet[_n4] = 0.0;
+                }
+                var _loop = function _loop(_n5) {
+                    var ts = stateSet.slice(0, _this5.afferentNodesCount);
 
-                for (var _n3 = stateSet.length; _n3 < _this5.afferentNodesCount * _this5.gpu_batch_size; _n3++) {
-                    stateSet[_n3] = 0.0;
-                }for (var _n4 = 0; _n4 < _this5.gpu_batch_size; _n4++) {
-                    _this5.comp_renderer_nodes.setArg("afferentNodes" + lett[_n4], function () {
-                        return stateSet.slice(0, _this5.afferentNodesCount);
-                    });
+                    var arrUniformsCount = Math.ceil(_this5.afferentNodesCount / 64);
+                    var d = Utils.fract(_this5.afferentNodesCount / 64);
+                    d = d === 0.0 ? 64 : d * 64;
+
+                    var _loop2 = function _loop2(_nb) {
+                        var cut = _nb === arrUniformsCount - 1 ? d : 64;
+                        _this5.comp_renderer_nodes.setArg("afferentNodes" + _this5.lett[_n5] + _nb, function () {
+                            return ts.slice(0, cut);
+                        });
+                        ts = ts.slice(cut);
+                    };
+
+                    for (var _nb = 0; _nb < arrUniformsCount; _nb++) {
+                        _loop2(_nb);
+                    }
                     stateSet = stateSet.slice(_this5.afferentNodesCount);
+                };
+
+                for (var _n5 = 0; _n5 < this.gpu_batch_size; _n5++) {
+                    _loop(_n5);
                 }
 
-                for (var _n5 = 0; _n5 < _this5.layerCount; _n5++) {
-                    _this5.comp_renderer_nodes.gpufG.processKernel(_this5.comp_renderer_nodes.gpufG.kernels[0], true, true);
-                }_this5._sce.getLoadedProject().getActiveStage().tick();
+                for (var _n6 = 0; _n6 < this.layerCount; _n6++) {
+                    this.comp_renderer_nodes.gpufG.processKernel(this.comp_renderer_nodes.gpufG.kernels[0], true, true);
+                }this._sce.getLoadedProject().getActiveStage().tick();
 
                 //if(jsonIn.readOutput === undefined || jsonIn.readOutput === null || (jsonIn.readOutput !== null && jsonIn.readOutput === true)) {
                 var o = [[]];
                 var currO = 0;
-                for (var _n6 = 0; _n6 < _this5.efferentNodesCount * _this5.gpu_batch_size; _n6++) {
-                    if (o[currO].length === _this5.efferentNodesCount) {
+                for (var _n7 = 0; _n7 < this.efferentNodesCount * this.gpu_batch_size; _n7++) {
+                    if (o[currO].length === this.efferentNodesCount) {
                         o.push([]);
                         currO++;
                     }
 
-                    var u = _this5.getNeuronOutput(_this5.efferentNeuron[o[currO].length], loc[currO]);
+                    var u = this.getNeuronOutput(this.efferentNeuron[o[currO].length], loc[currO]);
                     if (isNaN(u[2]) === true) debugger;
                     o[currO].push({ "output": u[loc[currO][1]] });
                 }
 
-                for (var _n7 = 0; _n7 < o.length; _n7++) {
+                for (var _n8 = 0; _n8 < o.length; _n8++) {
                     var maxk = 0;
-                    var maxval = o[_n7][0].output;
+                    var maxval = o[_n8][0].output;
 
                     var vals = [maxval];
                     var y = [0];
@@ -3068,20 +3054,20 @@ var Graph = exports.Graph = function () {
                     var ced = [0];
                     var smd = [0];
 
-                    for (var nb = 1; nb < o[_n7].length; nb++) {
-                        vals.push(o[_n7][nb].output);
+                    for (var nb = 1; nb < o[_n8].length; nb++) {
+                        vals.push(o[_n8][nb].output);
                         y.push(0);
                         outs.push(0);
                         sm.push(0);
                         ced.push(0);
                         smd.push(0);
 
-                        if (o[_n7][nb].output > maxval) {
+                        if (o[_n8][nb].output > maxval) {
                             maxk = nb;
-                            maxval = o[_n7][nb].output;
+                            maxval = o[_n8][nb].output;
                         }
                     }
-                    _this5.maxacts.push({ "action": maxk, "value": maxval, "values": vals, "y": y, "o": outs, "sm": sm, "ced": ced, "smd": smd });
+                    this.maxacts.push({ "action": maxk, "value": maxval, "values": vals, "y": y, "o": outs, "sm": sm, "ced": ced, "smd": smd });
                 }
 
                 // softmax
@@ -3096,10 +3082,6 @@ var Graph = exports.Graph = function () {
                     }
                 }*/
                 //}
-            };
-
-            for (var r = 0; r < this.batch_repeats; r++) {
-                _loop(r);
             }
             if (this.onAction !== null) this.onAction(this.maxacts);
         }
@@ -3116,7 +3098,6 @@ var Graph = exports.Graph = function () {
             var _this6 = this;
 
             this.onTrained = jsonIn.onTrained;
-            var lett = ["A", "B", "C", "D", "E", "F", "G"];
 
             // softmax regression
             /*let cost = 0.0;
@@ -3201,18 +3182,18 @@ var Graph = exports.Graph = function () {
 
             var cr = 0;
 
-            var _loop2 = function _loop2(r) {
+            var _loop3 = function _loop3(r) {
                 var dd = [];
-                for (var _n8 = 0; _n8 < _this6.gpu_batch_size; _n8++) {
-                    for (var _nb = 0; _nb < _this6.efferentNodesCount; _nb++) {
-                        var cc = _this6.maxacts[cr].o[_nb];
+                for (var _n9 = 0; _n9 < _this6.gpu_batch_size; _n9++) {
+                    for (var _nb2 = 0; _nb2 < _this6.efferentNodesCount; _nb2++) {
+                        var cc = _this6.maxacts[cr].o[_nb2];
                         dd.push(cc);
                     }
                     cr++;
                 }
                 // send
-                for (var _n9 = 0; _n9 < _this6.gpu_batch_size; _n9++) {
-                    _this6.comp_renderer_nodes.setArg("efferentNodes" + lett[_n9], function () {
+                for (var _n10 = 0; _n10 < _this6.gpu_batch_size; _n10++) {
+                    _this6.comp_renderer_nodes.setArg("efferentNodes" + _this6.lett[_n10], function () {
                         return dd.slice(0, _this6.efferentNodesCount);
                     });
                     dd = dd.slice(_this6.efferentNodesCount);
@@ -3220,9 +3201,9 @@ var Graph = exports.Graph = function () {
 
                 _this6.comp_renderer_nodes.gpufG.processKernel(_this6.comp_renderer_nodes.gpufG.kernels[0], true, true);
 
-                var _loop3 = function _loop3(_n10) {
+                var _loop4 = function _loop4(_n11) {
                     _this6.comp_renderer_nodes.setArg("currentTrainLayer", function () {
-                        return _n10;
+                        return _n11;
                     });
 
                     _this6.comp_renderer_nodes.gpufG.processKernel(_this6.comp_renderer_nodes.gpufG.kernels[0], true, true);
@@ -3241,13 +3222,13 @@ var Graph = exports.Graph = function () {
                     });
                 };
 
-                for (var _n10 = _this6.layerCount - 2; _n10 >= 0; _n10--) {
-                    _loop3(_n10);
+                for (var _n11 = _this6.layerCount - 2; _n11 >= 0; _n11--) {
+                    _loop4(_n11);
                 }
             };
 
             for (var r = 0; r < this.batch_repeats; r++) {
-                _loop2(r);
+                _loop3(r);
             }
 
             if (this.onTrained !== null) this.onTrained(cost);
@@ -3376,11 +3357,11 @@ var Graph = exports.Graph = function () {
 
             // link id
             for (var na = 0; na < this.linksObj.length; na++) {
-                for (var _n11 = 0; _n11 < this.linksObj[na].arrayLinkData.length / 4; _n11++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.linksObj[na].arrayLinkData[_n11 * 4] === node.nodeId) setVal(type, jsonIn.argName, "links_array_value", _n11, jsonIn.value);else {
-                        var _id2 = type === "float" ? _n11 : _n11 * 4;
+                for (var _n12 = 0; _n12 < this.linksObj[na].arrayLinkData.length / 4; _n12++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.linksObj[na].arrayLinkData[_n12 * 4] === node.nodeId) setVal(type, jsonIn.argName, "links_array_value", _n12, jsonIn.value);else {
+                        var _id2 = type === "float" ? _n12 : _n12 * 4;
                         if (this._customArgs[jsonIn.argName]["links_array_value"][_id2] === undefined && this._customArgs[jsonIn.argName]["links_array_value"][_id2] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "links_array_value", _n11, 0.0);else setVal(type, jsonIn.argName, "links_array_value", _n11, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "links_array_value", _n12, 0.0);else setVal(type, jsonIn.argName, "links_array_value", _n12, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3391,11 +3372,11 @@ var Graph = exports.Graph = function () {
 
             // arrow id
             for (var _na9 = 0; _na9 < this.arrowsObj.length; _na9++) {
-                for (var _n12 = 0; _n12 < this.arrowsObj[_na9].arrayArrowData.length / 4; _n12++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrowsObj[_na9].arrayArrowData[_n12 * 4] === node.nodeId) setVal(type, jsonIn.argName, "arrows_array_value", _n12, jsonIn.value);else {
-                        var _id3 = type === "float" ? _n12 : _n12 * 4;
+                for (var _n13 = 0; _n13 < this.arrowsObj[_na9].arrayArrowData.length / 4; _n13++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrowsObj[_na9].arrayArrowData[_n13 * 4] === node.nodeId) setVal(type, jsonIn.argName, "arrows_array_value", _n13, jsonIn.value);else {
+                        var _id3 = type === "float" ? _n13 : _n13 * 4;
                         if (this._customArgs[jsonIn.argName]["arrows_array_value"][_id3] === undefined && this._customArgs[jsonIn.argName]["arrows_array_value"][_id3] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "arrows_array_value", _n12, 0.0);else setVal(type, jsonIn.argName, "arrows_array_value", _n12, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "arrows_array_value", _n13, 0.0);else setVal(type, jsonIn.argName, "arrows_array_value", _n13, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3406,11 +3387,11 @@ var Graph = exports.Graph = function () {
 
             if (this._enableFont === true) {
                 // nodeText id
-                for (var _n13 = 0; _n13 < this.arrayNodeTextData.length / 4; _n13++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrayNodeTextData[_n13 * 4] === node.nodeId) setVal(type, jsonIn.argName, "nodestext_array_value", _n13, jsonIn.value);else {
-                        var _id4 = type === "float" ? _n13 : _n13 * 4;
+                for (var _n14 = 0; _n14 < this.arrayNodeTextData.length / 4; _n14++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrayNodeTextData[_n14 * 4] === node.nodeId) setVal(type, jsonIn.argName, "nodestext_array_value", _n14, jsonIn.value);else {
+                        var _id4 = type === "float" ? _n14 : _n14 * 4;
                         if (this._customArgs[jsonIn.argName]["nodestext_array_value"][_id4] === undefined && this._customArgs[jsonIn.argName]["nodestext_array_value"][_id4] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "nodestext_array_value", _n13, 0.0);else setVal(type, jsonIn.argName, "nodestext_array_value", _n13, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "nodestext_array_value", _n14, 0.0);else setVal(type, jsonIn.argName, "nodestext_array_value", _n14, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3466,8 +3447,8 @@ var Graph = exports.Graph = function () {
             // links
             this._customArgs[jsonIn.argName].links_array_value = [];
             for (var na = 0; na < this.linksObj.length; na++) {
-                for (var _n14 = 0; _n14 < this.linksObj[na].arrayLinkNodeName.length; _n14++) {
-                    var currentLinkNodeName = this.linksObj[na].arrayLinkNodeName[_n14];
+                for (var _n15 = 0; _n15 < this.linksObj[na].arrayLinkNodeName.length; _n15++) {
+                    var currentLinkNodeName = this.linksObj[na].arrayLinkNodeName[_n15];
                     var nodeNameItemStart = this._nodesByName[currentLinkNodeName].itemStart;
 
                     if (type === "float") {
@@ -3484,8 +3465,8 @@ var Graph = exports.Graph = function () {
             // arrows
             this._customArgs[jsonIn.argName].arrows_array_value = [];
             for (var _na10 = 0; _na10 < this.arrowsObj.length; _na10++) {
-                for (var _n15 = 0; _n15 < this.arrowsObj[_na10].arrayArrowNodeName.length; _n15++) {
-                    var currentArrowNodeName = this.arrowsObj[_na10].arrayArrowNodeName[_n15];
+                for (var _n16 = 0; _n16 < this.arrowsObj[_na10].arrayArrowNodeName.length; _n16++) {
+                    var currentArrowNodeName = this.arrowsObj[_na10].arrayArrowNodeName[_n16];
                     var _nodeNameItemStart = this._nodesByName[currentArrowNodeName].itemStart;
 
                     if (type === "float") {
@@ -3502,8 +3483,8 @@ var Graph = exports.Graph = function () {
             // nodestext
             if (this._enableFont === true) {
                 this._customArgs[jsonIn.argName].nodestext_array_value = [];
-                for (var _n16 = 0; _n16 < this.arrayNodeTextNodeName.length; _n16++) {
-                    var currentNodeTextNodeName = this.arrayNodeTextNodeName[_n16];
+                for (var _n17 = 0; _n17 < this.arrayNodeTextNodeName.length; _n17++) {
+                    var currentNodeTextNodeName = this.arrayNodeTextNodeName[_n17];
                     var _nodeNameItemStart2 = this._nodesByName[currentNodeTextNodeName].itemStart;
 
                     if (type === "float") {
@@ -3621,8 +3602,8 @@ var Graph = exports.Graph = function () {
             }
 
             var maxNodeIndexId = 0;
-            for (var _n17 = 0; _n17 < this.mesh_nodes.indexArray.length; _n17++) {
-                var idxIndex = _n17;
+            for (var _n18 = 0; _n18 < this.mesh_nodes.indexArray.length; _n18++) {
+                var idxIndex = _n18;
 
                 this.arrayNodeIndices.push(this.startIndexId + this.mesh_nodes.indexArray[idxIndex]);
 
@@ -3685,8 +3666,8 @@ var Graph = exports.Graph = function () {
             }
             var maxNodeIndexId = 0;
             for (var _i = 0; _i < this.nodesTextPlanes; _i++) {
-                for (var _n18 = 0; _n18 < this.mesh_nodesText.indexArray.length; _n18++) {
-                    var idxIndex = _n18;
+                for (var _n19 = 0; _n19 < this.mesh_nodesText.indexArray.length; _n19++) {
+                    var idxIndex = _n19;
 
                     var b = _i * 4; // 4 = indices length of quad (0, 1, 2, 0, 2, 3)
                     var ii = this.mesh_nodesText.indexArray[idxIndex] + b;
@@ -3881,7 +3862,7 @@ var Graph = exports.Graph = function () {
                 }
             }
 
-            for (var _n19 = 0; _n19 < this.lineVertexCount * 2; _n19++) {
+            for (var _n20 = 0; _n20 < this.lineVertexCount * 2; _n20++) {
                 this.linksObj[this.currentLinksObjItem].arrayLinkIndices.push(this.linksObj[this.currentLinksObjItem].startIndexId_link++);
             }this.currentLinkId += 2; // augment link id
 
@@ -3914,16 +3895,16 @@ var Graph = exports.Graph = function () {
 
             var oppositeId = 0;
 
-            for (var _o = 0; _o < 2; _o++) {
+            for (var o = 0; o < 2; o++) {
                 for (var n = 0; n < this.mesh_arrows.vertexArray.length / 4; n++) {
                     var idxVertex = n * 4;
-                    if (_o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
+                    if (o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowPosXYZW.push(0.0, 0.0, 0.0, 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexPos.push(this.mesh_arrows.vertexArray[idxVertex], this.mesh_arrows.vertexArray[idxVertex + 1], this.mesh_arrows.vertexArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex + 1], this.mesh_arrows.normalArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex + 1], this.mesh_arrows.textureArray[idxVertex + 2], 1.0);
-                    if (_o === 0) {
+                    if (o === 0) {
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.repeatId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                         if (jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
@@ -3957,8 +3938,8 @@ var Graph = exports.Graph = function () {
                 }
 
                 var maxArrowIndexId = 0;
-                for (var _n20 = 0; _n20 < this.mesh_arrows.indexArray.length; _n20++) {
-                    var idxIndex = _n20;
+                for (var _n21 = 0; _n21 < this.mesh_arrows.indexArray.length; _n21++) {
+                    var idxIndex = _n21;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowIndices.push(this.arrowsObj[this.currentArrowsObjItem].startIndexId_arrow + this.mesh_arrows.indexArray[idxIndex]);
 
@@ -4109,48 +4090,17 @@ var Graph = exports.Graph = function () {
                 return _this10.currentNodeId - _this10.efferentNodesCount;
             });
 
-            this.comp_renderer_nodes.setArg("afferentNodesA", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesA", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesB", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesB", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesC", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesC", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesD", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesD", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesE", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesE", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesF", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesF", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("afferentNodesG", function () {
-                return new Float32Array(_this10.afferentNodesCount);
-            });
-            this.comp_renderer_nodes.setArg("efferentNodesG", function () {
-                return new Float32Array(_this10.efferentNodesCount);
-            });
+            var arrUniformsCount = Math.ceil(this.afferentNodesCount / 64);
+            for (var n = 0; n < this.lett.length; n++) {
+                for (var nb = 0; nb < arrUniformsCount; nb++) {
+                    this.comp_renderer_nodes.setArg("afferentNodes" + this.lett[n] + nb, function () {
+                        return new Float32Array(64);
+                    });
+                }this.comp_renderer_nodes.setArg("efferentNodes" + this.lett[n], function () {
+                    return new Float32Array(_this10.efferentNodesCount);
+                });
+            }
+
             this.comp_renderer_nodes.setArg("isNode", function () {
                 return 1;
             });
@@ -4158,7 +4108,7 @@ var Graph = exports.Graph = function () {
                 return _this10.comp_renderer_nodes.getBuffers()["posXYZW"].W;
             });
 
-            var _loop4 = function _loop4(argNameKey) {
+            var _loop5 = function _loop5(argNameKey) {
                 var expl = _this10._customArgs[argNameKey].arg.split("*");
                 if (expl.length > 0) {
                     // argument is type buffer
@@ -4169,7 +4119,7 @@ var Graph = exports.Graph = function () {
             };
 
             for (var argNameKey in this._customArgs) {
-                _loop4(argNameKey);
+                _loop5(argNameKey);
             }
 
             this.generateNodesImage();
@@ -4232,7 +4182,7 @@ var Graph = exports.Graph = function () {
                 return 1.0;
             });
 
-            var _loop5 = function _loop5(argNameKey) {
+            var _loop6 = function _loop6(argNameKey) {
                 var expl = _this11._customArgs[argNameKey].arg.split("*");
                 if (expl.length > 0) // argument is type buffer
                     _this11.comp_renderer_nodesText.setArg(argNameKey, function () {
@@ -4241,7 +4191,7 @@ var Graph = exports.Graph = function () {
             };
 
             for (var argNameKey in this._customArgs) {
-                _loop5(argNameKey);
+                _loop6(argNameKey);
             }
         }
     }, {
@@ -4259,7 +4209,7 @@ var Graph = exports.Graph = function () {
 
             console.log(Object.keys(this._links).length + " links");
 
-            var _loop6 = function _loop6(na) {
+            var _loop7 = function _loop7(na) {
                 _this12.linksObj[na].componentRenderer.setArg("data", function () {
                     return _this12.linksObj[na].arrayLinkData;
                 });
@@ -4298,7 +4248,7 @@ var Graph = exports.Graph = function () {
                     return _this12.linksObj[na].componentRenderer.getBuffers()["data"].W;
                 });
 
-                var _loop7 = function _loop7(argNameKey) {
+                var _loop8 = function _loop8(argNameKey) {
                     var expl = _this12._customArgs[argNameKey].arg.split("*");
                     if (expl.length > 0) {
                         // argument is type buffer
@@ -4309,12 +4259,12 @@ var Graph = exports.Graph = function () {
                 };
 
                 for (var argNameKey in _this12._customArgs) {
-                    _loop7(argNameKey);
+                    _loop8(argNameKey);
                 }
             };
 
             for (var na = 0; na < this.linksObj.length; na++) {
-                _loop6(na);
+                _loop7(na);
             }
 
             this.updateArrows();
@@ -4326,7 +4276,7 @@ var Graph = exports.Graph = function () {
         value: function updateArrows() {
             var _this13 = this;
 
-            var _loop8 = function _loop8(na) {
+            var _loop9 = function _loop9(na) {
                 _this13.arrowsObj[na].componentRenderer.setArg("data", function () {
                     return _this13.arrowsObj[na].arrayArrowData;
                 });
@@ -4372,7 +4322,7 @@ var Graph = exports.Graph = function () {
                     return _this13.arrowsObj[na].componentRenderer.getBuffers()["data"].W;
                 });
 
-                var _loop9 = function _loop9(argNameKey) {
+                var _loop10 = function _loop10(argNameKey) {
                     var expl = _this13._customArgs[argNameKey].arg.split("*");
                     if (expl.length > 0) {
                         // argument is type buffer
@@ -4383,12 +4333,12 @@ var Graph = exports.Graph = function () {
                 };
 
                 for (var argNameKey in _this13._customArgs) {
-                    _loop9(argNameKey);
+                    _loop10(argNameKey);
                 }
             };
 
             for (var na = 0; na < this.arrowsObj.length; na++) {
-                _loop8(na);
+                _loop9(na);
             }
         }
     }, {
@@ -4616,7 +4566,7 @@ var KERNEL_ADJMATRIX_UPDATE = exports.KERNEL_ADJMATRIX_UPDATE = function () {
             "",
 
             // source
-            "vec4 adjMat = adjacencyMatrix[x]; \n            vec4 adjMatB = adjacencyMatrixB[x];\n            vec4 adjMatC = adjacencyMatrixC[x];\n            vec4 adjMatD = adjacencyMatrixD[x];\n\n            float linkLayerNum = adjMat.x;\n            float weightQuadSum = adjMat.y;\n            float linkWeight = adjMat.z;\n            float linkTypeParent = adjMat.w;\n            \n            float multiplier = adjMatD.z;\n            float weightAbsSum = adjMatB.x;\n            float costA = adjMatB.y;\n            float costB = adjMatC.x;\n            float costC = adjMatC.y;\n            float costD = adjMatC.z;\n            float costE = adjMatC.w;\n            float costF = adjMatD.x;\n            float costG = adjMatD.y;\n            \n            if(multiplier != 1.0) {\n                " + "\n            } else if(currentTrainLayer == -10.0) { \n                costA = 0.0;\n                costB = 0.0;\n                costC = 0.0;\n                costD = 0.0;\n                costE = 0.0;\n                costF = 0.0;\n                costG = 0.0;\n            } else if(linkTypeParent == 0.5 && linkLayerNum >= 0.0) {\n                float id = adjMatB.z;\n                float idInv = adjMatB.w;\n            \n                vec2 xGeometryCurrentChild = get_global_id(id, bufferNodesWidth, " + geometryLength.toFixed(1) + ");\n                vec2 xGeometryParent = get_global_id(idInv, bufferNodesWidth, " + geometryLength.toFixed(1) + (");\n\n\n                float childBiasNode = dataB[xGeometryCurrentChild].x;\n                \n                float childGOutputA = dataB[xGeometryCurrentChild].z;\n                float childGOutputB = dataF[xGeometryCurrentChild].x;\n                float childGOutputC = dataF[xGeometryCurrentChild].z;\n                float childGOutputD = dataG[xGeometryCurrentChild].x;\n                float childGOutputE = dataG[xGeometryCurrentChild].z;\n                float childGOutputF = dataH[xGeometryCurrentChild].x;\n                float childGOutputG = dataH[xGeometryCurrentChild].z;\n                \n                \n                float parentGOutputA = dataB[xGeometryParent].z;\n                float parentGOutputB = dataF[xGeometryParent].x;\n                float parentGOutputC = dataF[xGeometryParent].z;\n                float parentGOutputD = dataG[xGeometryParent].x;\n                float parentGOutputE = dataG[xGeometryParent].z;\n                float parentGOutputF = dataH[xGeometryParent].x;\n                float parentGOutputG = dataH[xGeometryParent].z;\n                \n                float parentGDeltaA = dataB[xGeometryParent].y;\n                float parentGDeltaB = dataB[xGeometryParent].w;\n                float parentGDeltaC = dataF[xGeometryParent].y;\n                float parentGDeltaD = dataF[xGeometryParent].w;\n                float parentGDeltaE = dataG[xGeometryParent].y;\n                float parentGDeltaF = dataG[xGeometryParent].w;\n                float parentGDeltaG = dataH[xGeometryParent].y;\n                \n                \n                \n                float lr = learningRate;\n                float l1_decay = 0.0;\n                float l2_decay = 0.01;\n                float gpu_batch_size = 7.0;     \n                \n                if(currentTrainLayer == linkLayerNum) {\n                    if(weightQuadSum != 0.0) {                        \n                        float parentGOutputDerivA = 1.0;                    \n                        float parentGOutputDerivB = 1.0;\n                        float parentGOutputDerivC = 1.0;\n                        float parentGOutputDerivD = 1.0;\n                        float parentGOutputDerivE = 1.0;\n                        float parentGOutputDerivF = 1.0;\n                        float parentGOutputDerivG = 1.0;\n                        if(linkLayerNum < layerCount-2.0) {\n                            parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    \n                            parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;\n                        }\n                        \n                        float dA = parentGDeltaA*parentGOutputDerivA;\n                        float dB = parentGDeltaB*parentGOutputDerivB;\n                        float dC = parentGDeltaC*parentGOutputDerivC;\n                        float dD = parentGDeltaD*parentGOutputDerivD;\n                        float dE = parentGDeltaE*parentGOutputDerivE;\n                        float dF = parentGDeltaF*parentGOutputDerivF;\n                        float dG = parentGDeltaG*parentGOutputDerivG;\n                        \n                        float wT = 0.0;\n                        wT += dA*childGOutputA;\n                        wT += dB*childGOutputB;\n                        wT += dC*childGOutputC;\n                        wT += dD*childGOutputD;\n                        wT += dE*childGOutputE;\n                        wT += dF*childGOutputF;\n                        wT += dG*childGOutputG;\n                        wT /= (gpu_batch_size*batch_repeats);\n                    \n                        costA = dA*linkWeight;\n                        costB = dB*linkWeight;\n                        costC = dC*linkWeight;\n                        costD = dD*linkWeight;\n                        costE = dE*linkWeight;\n                        costF = dF*linkWeight;\n                        costG = dG*linkWeight;\n                        \n                        linkWeight += -lr*(" + " wT);\n                        weightQuadSum = 0.0;\n                        weightAbsSum = 0.0;                        \n                    } else {\n                        weightQuadSum += linkWeight*linkWeight;\n                        weightAbsSum += abs(linkWeight);\n                    }\n                }\n            }\n            \n            return [vec4(linkLayerNum, weightQuadSum, linkWeight, linkTypeParent), vec4(weightAbsSum, costA, adjMatB.z, adjMatB.w), vec4(costB, costC, costD, costE), vec4(costF, costG, 0.0, 0.0)];\n            ")];
+            "vec4 adjMat = adjacencyMatrix[x]; \n            vec4 adjMatB = adjacencyMatrixB[x];\n            vec4 adjMatC = adjacencyMatrixC[x];\n            vec4 adjMatD = adjacencyMatrixD[x];\n\n            float linkLayerNum = adjMat.x;\n            float weightQuadSum = adjMat.y;\n            float linkWeight = adjMat.z;\n            float linkTypeParent = adjMat.w;\n            \n            float multiplier = adjMatD.z;\n            float weightAbsSum = adjMatB.x;\n            float costA = adjMatB.y;\n            float costB = adjMatC.x;\n            float costC = adjMatC.y;\n            float costD = adjMatC.z;\n            float costE = adjMatC.w;\n            float costF = adjMatD.x;\n            float costG = adjMatD.y;\n            \n            if(currentTrainLayer == -10.0) { \n                costA = 0.0;\n                costB = 0.0;\n                costC = 0.0;\n                costD = 0.0;\n                costE = 0.0;\n                costF = 0.0;\n                costG = 0.0;\n            } else if(linkTypeParent == 0.5 && linkLayerNum >= 0.0) {\n                float id = adjMatB.z;\n                float idInv = adjMatB.w;\n            \n                vec2 xGeometryCurrentChild = get_global_id(id, bufferNodesWidth, " + geometryLength.toFixed(1) + ");\n                vec2 xGeometryParent = get_global_id(idInv, bufferNodesWidth, " + geometryLength.toFixed(1) + (");\n\n\n                float childBiasNode = dataB[xGeometryCurrentChild].x;\n                \n                float childGOutputA = dataB[xGeometryCurrentChild].z;\n                float childGOutputB = dataF[xGeometryCurrentChild].x;\n                float childGOutputC = dataF[xGeometryCurrentChild].z;\n                float childGOutputD = dataG[xGeometryCurrentChild].x;\n                float childGOutputE = dataG[xGeometryCurrentChild].z;\n                float childGOutputF = dataH[xGeometryCurrentChild].x;\n                float childGOutputG = dataH[xGeometryCurrentChild].z;\n                \n                \n                float parentGOutputA = dataB[xGeometryParent].z;\n                float parentGOutputB = dataF[xGeometryParent].x;\n                float parentGOutputC = dataF[xGeometryParent].z;\n                float parentGOutputD = dataG[xGeometryParent].x;\n                float parentGOutputE = dataG[xGeometryParent].z;\n                float parentGOutputF = dataH[xGeometryParent].x;\n                float parentGOutputG = dataH[xGeometryParent].z;\n                \n                float parentGDeltaA = dataB[xGeometryParent].y;\n                float parentGDeltaB = dataB[xGeometryParent].w;\n                float parentGDeltaC = dataF[xGeometryParent].y;\n                float parentGDeltaD = dataF[xGeometryParent].w;\n                float parentGDeltaE = dataG[xGeometryParent].y;\n                float parentGDeltaF = dataG[xGeometryParent].w;\n                float parentGDeltaG = dataH[xGeometryParent].y;\n                \n                \n                \n                float lr = learningRate;\n                float l1_decay = 0.0;\n                float l2_decay = 0.01;\n                float gpu_batch_size = 7.0;     \n                \n                if(currentTrainLayer == linkLayerNum) {\n                    if(weightQuadSum != 0.0) {                        \n                        float parentGOutputDerivA = 1.0;                    \n                        float parentGOutputDerivB = 1.0;\n                        float parentGOutputDerivC = 1.0;\n                        float parentGOutputDerivD = 1.0;\n                        float parentGOutputDerivE = 1.0;\n                        float parentGOutputDerivF = 1.0;\n                        float parentGOutputDerivG = 1.0;\n                        if(linkLayerNum < layerCount-2.0) {\n                            parentGOutputDerivA = (parentGOutputA <= 0.0) ? 0.01 : 1.0;                    \n                            parentGOutputDerivB = (parentGOutputB <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivC = (parentGOutputC <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivD = (parentGOutputD <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivE = (parentGOutputE <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivF = (parentGOutputF <= 0.0) ? 0.01 : 1.0;\n                            parentGOutputDerivG = (parentGOutputG <= 0.0) ? 0.01 : 1.0;\n                        }\n                        \n                        float dA = parentGDeltaA*parentGOutputDerivA;\n                        float dB = parentGDeltaB*parentGOutputDerivB;\n                        float dC = parentGDeltaC*parentGOutputDerivC;\n                        float dD = parentGDeltaD*parentGOutputDerivD;\n                        float dE = parentGDeltaE*parentGOutputDerivE;\n                        float dF = parentGDeltaF*parentGOutputDerivF;\n                        float dG = parentGDeltaG*parentGOutputDerivG;\n                        \n                        float wT = 0.0;\n                        wT += dA*childGOutputA;\n                        wT += dB*childGOutputB;\n                        wT += dC*childGOutputC;\n                        wT += dD*childGOutputD;\n                        wT += dE*childGOutputE;\n                        wT += dF*childGOutputF;\n                        wT += dG*childGOutputG;\n                        wT /= (gpu_batch_size*batch_repeats);\n                    \n                        costA = dA*linkWeight;\n                        costB = dB*linkWeight;\n                        costC = dC*linkWeight;\n                        costD = dD*linkWeight;\n                        costE = dE*linkWeight;\n                        costF = dF*linkWeight;\n                        costG = dG*linkWeight;\n                        \n                        linkWeight += -lr*(" + " wT);\n                        weightQuadSum = 0.0;\n                        weightAbsSum = 0.0;                        \n                    } else {\n                        weightQuadSum += linkWeight*linkWeight;\n                        weightAbsSum += abs(linkWeight);\n                    }\n                }\n            }\n            \n            return [vec4(linkLayerNum, weightQuadSum, linkWeight, linkTypeParent), vec4(weightAbsSum, costA, adjMatB.z, adjMatB.w), vec4(costB, costC, costD, costE), vec4(costF, costG, 0.0, 0.0)];\n            ")];
         }
     }]);
 
@@ -4659,17 +4609,23 @@ var KERNEL_DIR = exports.KERNEL_DIR = function () {
     }, {
         key: "efferentNodesStr",
         value: function efferentNodesStr(afferentNodesCount, efferentStart, efferentNodesCount) {
+            var arrUniformsCount = Math.ceil(afferentNodesCount / 64);
             /////////////////////////////////////////////////
             // OUTPUT
             /////////////////////////////////////////////////
-            var str = "\n            if(freezeOutput == 0.0) {\n                if(nodeId < afferentNodesCount) {\n                    for(float n=0.0; n < 1024.0; n+=1.0) {\n                        if(n >= afferentNodesCount) {\n                            break;\n                        }\n                        if(nodeId == n) {\n                            foutputA = afferentNodesA[int(n)];\n                            foutputB = afferentNodesB[int(n)];\n                            foutputC = afferentNodesC[int(n)];\n                            foutputD = afferentNodesD[int(n)];\n                            foutputE = afferentNodesE[int(n)];\n                            foutputF = afferentNodesF[int(n)];\n                            foutputG = afferentNodesG[int(n)];\n                            break;\n                        }\n                    }\n                } else {\n                    if(currentBiasNode == 0.0) {\n                        if(nodeId >= " + efferentStart.toFixed(1) + (") {\n                            foutputA = netChildInputSumA;\n                            foutputB = netChildInputSumB;\n                            foutputC = netChildInputSumC;\n                            foutputD = netChildInputSumD;\n                            foutputE = netChildInputSumE;\n                            foutputF = netChildInputSumF;\n                            foutputG = netChildInputSumG;\n                        } else {                                  \n                            foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; " + "\n                            foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;\n                            foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;\n                            foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;\n                            foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;\n                            foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;\n                            foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;\n                        }\n                    } else {\n                        foutputA = 1.0;\n                        foutputB = 1.0;\n                        foutputC = 1.0;\n                        foutputD = 1.0;\n                        foutputE = 1.0;\n                        foutputF = 1.0;\n                        foutputG = 1.0;\n                    }\n                }\n            } else {\n                foutputA = currentDataB.z;\n                foutputB = currentDataF.x;\n                foutputC = currentDataF.z;\n                foutputD = currentDataG.x;\n                foutputE = currentDataG.z;\n                foutputF = currentDataH.x;\n                foutputG = currentDataH.z;\n            }");
+            var str = "\n            if(freezeOutput == 0.0) {\n                if(nodeId < afferentNodesCount) {\n                    for(float n=0.0; n < 256.0; n+=1.0) {\n                        if(n >= afferentNodesCount) {\n                            break;\n                        }\n                        if(nodeId == n) {";
+            for (var n = arrUniformsCount - 1; n >= 0; n--) {
+                var cond = n === arrUniformsCount - 1 ? "if" : "else if";
+                str += "\n                                " + cond + "(nodeId >= " + (n * 64).toFixed(1) + ") {\n                                    foutputA = afferentNodesA" + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputB = afferentNodesB") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputC = afferentNodesC") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputD = afferentNodesD") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputE = afferentNodesE") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputF = afferentNodesF") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputG = afferentNodesG") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    \n                                }");
+            }
+            str += "            break;\n                        }\n                    }\n                } else {\n                    if(currentBiasNode == 0.0) {\n                        if(nodeId >= " + efferentStart.toFixed(1) + (") {\n                            foutputA = netChildInputSumA;\n                            foutputB = netChildInputSumB;\n                            foutputC = netChildInputSumC;\n                            foutputD = netChildInputSumD;\n                            foutputE = netChildInputSumE;\n                            foutputF = netChildInputSumF;\n                            foutputG = netChildInputSumG;\n                        } else {                                  \n                            foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; " + "\n                            foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;\n                            foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;\n                            foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;\n                            foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;\n                            foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;\n                            foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;\n                        }\n                    } else {\n                        foutputA = 1.0;\n                        foutputB = 1.0;\n                        foutputC = 1.0;\n                        foutputD = 1.0;\n                        foutputE = 1.0;\n                        foutputF = 1.0;\n                        foutputG = 1.0;\n                    }\n                }\n            } else {\n                foutputA = currentDataB.z;\n                foutputB = currentDataF.x;\n                foutputC = currentDataF.z;\n                foutputD = currentDataG.x;\n                foutputE = currentDataG.z;\n                foutputF = currentDataH.x;\n                foutputG = currentDataH.z;\n            }");
 
             /////////////////////////////////////////////////
             // ERROR
             /////////////////////////////////////////////////
-            for (var n = efferentStart; n < efferentStart + efferentNodesCount; n++) {
-                var cond = n === efferentStart ? "if" : "else if";
-                str += "\n            " + cond + "(nodeId == " + n.toFixed(1) + (") {\n                if(freezeOutput == 0.0) {\n                    foutputA = netChildInputSumA; " + " \n                    foutputB = netChildInputSumB;\n                    foutputC = netChildInputSumC;\n                    foutputD = netChildInputSumD;\n                    foutputE = netChildInputSumE;\n                    foutputF = netChildInputSumF;\n                    foutputG = netChildInputSumG;\n                } else {\n                    foutputA = currentDataB.z;\n                    foutputB = currentDataF.x;\n                    foutputC = currentDataF.z;\n                    foutputD = currentDataG.x;\n                    foutputE = currentDataG.z;\n                    foutputF = currentDataH.x;\n                    foutputG = currentDataH.z;\n                }               \n                netParentErrorWeightA = efferentNodesA[") + Math.round(n - efferentStart) + "];\n                netParentErrorWeightB = efferentNodesB[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightC = efferentNodesC[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightD = efferentNodesD[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightE = efferentNodesE[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightF = efferentNodesF[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightG = efferentNodesG[" + Math.round(n - efferentStart) + "];\n            }";
+            for (var _n = efferentStart; _n < efferentStart + efferentNodesCount; _n++) {
+                var _cond = _n === efferentStart ? "if" : "else if";
+                str += "\n            " + _cond + "(nodeId == " + _n.toFixed(1) + (") {\n                if(freezeOutput == 0.0) {\n                    foutputA = netChildInputSumA; " + " \n                    foutputB = netChildInputSumB;\n                    foutputC = netChildInputSumC;\n                    foutputD = netChildInputSumD;\n                    foutputE = netChildInputSumE;\n                    foutputF = netChildInputSumF;\n                    foutputG = netChildInputSumG;\n                } else {\n                    foutputA = currentDataB.z;\n                    foutputB = currentDataF.x;\n                    foutputC = currentDataF.z;\n                    foutputD = currentDataG.x;\n                    foutputE = currentDataG.z;\n                    foutputF = currentDataH.x;\n                    foutputG = currentDataH.z;\n                }               \n                netParentErrorWeightA = efferentNodesA[") + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightB = efferentNodesB[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightC = efferentNodesC[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightD = efferentNodesD[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightE = efferentNodesE[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightF = efferentNodesF[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightG = efferentNodesG[" + Math.round(_n - efferentStart) + "];\n            }";
             }
             return str;
         }
@@ -5643,22 +5599,22 @@ var GBrain = exports.GBrain = function () {
                 return _this.graph.createNeuronLayer(w, h, [_this.offsetX, 0.0, posZ, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, isInput);
             };
 
-            var mr = function mr(w, originLayer, targetLayer, weights, type, convMatrixId) {
+            var mr = function mr(w, originLayer, targetLayer, weights, type, layerNum, hasBias, layer_neurons_count, convMatrixId) {
                 if (type === "fc") {
                     _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": originLayer,
                         "neuronLayerTarget": targetLayer,
                         "weights": weights !== undefined && weights !== null ? weights : null,
-                        "layer_neurons_count": _this.layerNodes[_this.layerNodes.length - 1].length,
-                        "layerNum": _this.graph.layerCount - 1,
-                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias }); // TODO l.activation
+                        "layer_neurons_count": layer_neurons_count,
+                        "layerNum": layerNum,
+                        "hasBias": hasBias }); // TODO l.activation
                 } else if (type === "conv") {
                     _this.graph.connectConvXYNeuronsFromXYNeurons({ "w": w,
                         "neuronLayerOrigin": originLayer,
                         "neuronLayerTarget": targetLayer,
                         "weights": weights !== undefined && weights !== null ? weights : null,
-                        "layer_neurons_count": _this.layerNodes[_this.layerNodes.length - 1].length,
-                        "layerNum": _this.graph.layerCount - 1,
-                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "layer_neurons_count": layer_neurons_count,
+                        "layerNum": layerNum,
+                        "hasBias": hasBias,
                         "convMatrixId": convMatrixId });
                 }
             };
@@ -5676,7 +5632,7 @@ var GBrain = exports.GBrain = function () {
                 },
                 "fc": function fc(l) {
                     var newNeurons = ml(1, l.num_neurons, 0, "fc", 0, false);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, _this.layerNodes[_this.layerNodes.length - 1], newNeurons, l.weights, "fc");
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, _this.layerNodes[_this.layerNodes.length - 1], newNeurons, l.weights, "fc", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 1].length);
 
                     _this.layerNodes.push(newNeurons);
 
@@ -5687,34 +5643,34 @@ var GBrain = exports.GBrain = function () {
                     var layerOrig = _this.layerNodes[_this.layerNodes.length - 1];
 
                     var newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 180);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 0);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 1].length, 0);
                     _this.layerNodes.push(newNeurons);
 
                     newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 120);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 1);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 2].length, 1);
                     _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
 
                     newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", 60);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 2);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 2].length, 2);
                     _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
 
                     newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -60);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 3);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 2].length, 3);
                     _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
 
                     newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -120);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 4);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 2].length, 4);
                     _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
 
                     newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, "conv", -180);
-                    mr(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, layerOrig, newNeurons, l.weights, "conv", 5);
+                    mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.layerNodes[_this.layerNodes.length - 2].length, 5);
                     _this.layerNodes[_this.layerNodes.length - 1] = _this.layerNodes[_this.layerNodes.length - 1].concat(newNeurons);
 
                     _this.graph.layerCount++;
                     _this.offsetX += 100;
                 },
                 "regression": function regression(l) {
-                    var offsetZ = -30.0 * (l.num_neurons / 2);
+                    var offsetZ = -5.0 * (l.num_neurons / 2);
                     var we = l.weights;
                     var newWe = [];
                     if (l.weights !== undefined && l.weights !== null) {
@@ -5734,7 +5690,7 @@ var GBrain = exports.GBrain = function () {
                         if (l.weights !== undefined && l.weights !== null) newWe = newWe.slice(_this.layerNodes[_this.layerNodes.length - 1].length);
 
                         _this.outputCount++;
-                        offsetZ += 30.0;
+                        offsetZ += 5.0;
                     }
                     _this.graph.layerCount++;
                 } };
