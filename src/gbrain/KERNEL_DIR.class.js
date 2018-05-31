@@ -223,29 +223,34 @@ export class KERNEL_DIR {
         /////////////////////////////////////////////////
         let str = `
             if(freezeOutput == 0.0) {
-                if(nodeId < afferentNodesCount) {
-                    for(float n=0.0; n < 256.0; n+=1.0) {
-                        if(n >= afferentNodesCount) {
-                            break;
-                        }
-                        if(nodeId == n) {`;
-                            for(let n=arrUniformsCount-1; n >= 0; n--) {
-                                let cond = (n===arrUniformsCount-1) ? "if" : "else if" ;
-                                str += `
-                                ${cond}(nodeId >= `+(n*64).toFixed(1)+`) {
-                                    foutputA = afferentNodesA`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputB = afferentNodesB`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputC = afferentNodesC`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputD = afferentNodesD`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputE = afferentNodesE`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputF = afferentNodesF`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    foutputG = afferentNodesG`+n+`[int(n-(${(n*64).toFixed(1)}))];
-                                    
-                                }`;
-                            }
-        str += `            break;
-                        }
-                    }
+                if(nodeId < afferentNodesCount) {                
+                    vec2 idA = get_global_id(nodeId, afferentNodesTWidth, 1.0);
+                    vec4 tA = afferentNodesT[idA];
+                    foutputA = tA.r;
+                    
+                    vec2 idB = get_global_id(nodeId+(afferentNodesCount), afferentNodesTWidth, 1.0);
+                    vec4 tB = afferentNodesT[idB];
+                    foutputB = tB.r;
+                    
+                    vec2 idC = get_global_id(nodeId+(afferentNodesCount*2.0), afferentNodesTWidth, 1.0);
+                    vec4 tC = afferentNodesT[idC];
+                    foutputC = tC.r;
+                    
+                    vec2 idD = get_global_id(nodeId+(afferentNodesCount*3.0), afferentNodesTWidth, 1.0);
+                    vec4 tD = afferentNodesT[idD];
+                    foutputD = tD.r;
+                    
+                    vec2 idE = get_global_id(nodeId+(afferentNodesCount*4.0), afferentNodesTWidth, 1.0);
+                    vec4 tE = afferentNodesT[idE];
+                    foutputE = tE.r;
+                    
+                    vec2 idF = get_global_id(nodeId+(afferentNodesCount*5.0), afferentNodesTWidth, 1.0);
+                    vec4 tF = afferentNodesT[idF];
+                    foutputF = tF.r;
+                    
+                    vec2 idG = get_global_id(nodeId+(afferentNodesCount*6.0), afferentNodesTWidth, 1.0);
+                    vec4 tG = afferentNodesT[idG];
+                    foutputG = tG.r;
                 } else {
                     if(currentBiasNode == 0.0) {
                         if(nodeId >= `+efferentStart.toFixed(1)+`) {

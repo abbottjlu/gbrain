@@ -1974,6 +1974,12 @@ var Graph = exports.Graph = function () {
                 "float learningRate": function floatLearningRate() {
                     return null;
                 },
+                "float4* afferentNodesT": function float4AfferentNodesT() {
+                    return null;
+                },
+                "float afferentNodesTWidth": function floatAfferentNodesTWidth() {
+                    return null;
+                },
                 "float batch_repeats": function floatBatch_repeats() {
                     return null;
                 },
@@ -2023,20 +2029,12 @@ var Graph = exports.Graph = function () {
                     return null;
                 }
             };
-            var aC = this.afferentNodesCount === 0 ? 1 : this.afferentNodesCount;
             var eC = this.efferentNodesCount === 0 ? 1 : this.efferentNodesCount;
-            var arrUniformsCount = Math.ceil(aC / 64);
             for (var n = 0; n < this.lett.length; n++) {
-                for (var nb = 0; nb < arrUniformsCount; nb++) {
-                    varDef_VFPNode['float afferentNodes' + this.lett[n] + nb + '[64]'] = function () {
-                        return null;
-                    };
-                }varDef_VFPNode['float efferentNodes' + this.lett[n] + '[' + eC + ']'] = function () {
+                varDef_VFPNode['float efferentNodes' + this.lett[n] + '[' + eC + ']'] = function () {
                     return null;
                 };
-            }
-
-            if (this.layout.argsDirection !== undefined && this.layout.argsDirection !== null) {
+            }if (this.layout.argsDirection !== undefined && this.layout.argsDirection !== null) {
                 for (var _n = 0; _n < this.layout.argsDirection.length; _n++) {
                     varDef_VFPNode[this.layout.argsDirection[_n]] = function () {
                         return null;
@@ -2994,51 +2992,39 @@ var Graph = exports.Graph = function () {
 
             this.maxacts = [];
             var state = jsonIn.state.slice(0);
-            for (var r = 0; r < this.batch_repeats; r++) {
-                var stateSet = state.slice(0, this.afferentNodesCount * this.gpu_batch_size);
 
-                for (var _n4 = stateSet.length; _n4 < this.afferentNodesCount * this.gpu_batch_size; _n4++) {
+            var _loop = function _loop(r) {
+                var stateSet = state.slice(0, _this5.afferentNodesCount * _this5.gpu_batch_size);
+
+                for (var _n4 = stateSet.length; _n4 < _this5.afferentNodesCount * _this5.gpu_batch_size; _n4++) {
                     stateSet[_n4] = 0.0;
-                }
-                var _loop = function _loop(_n5) {
-                    var ts = stateSet.slice(0, _this5.afferentNodesCount);
-
-                    var arrUniformsCount = Math.ceil(_this5.afferentNodesCount / 64);
-                    var d = Utils.fract(_this5.afferentNodesCount / 64);
-                    d = d === 0.0 ? 64 : d * 64;
-
-                    var _loop2 = function _loop2(_nb) {
-                        var cut = _nb === arrUniformsCount - 1 ? d : 64;
-                        _this5.comp_renderer_nodes.setArg("afferentNodes" + _this5.lett[_n5] + _nb, function () {
-                            return ts.slice(0, cut);
-                        });
-                        ts = ts.slice(cut);
-                    };
-
-                    for (var _nb = 0; _nb < arrUniformsCount; _nb++) {
-                        _loop2(_nb);
-                    }
-                    stateSet = stateSet.slice(_this5.afferentNodesCount);
-                };
-
-                for (var _n5 = 0; _n5 < this.gpu_batch_size; _n5++) {
-                    _loop(_n5);
+                }var stateSetT = [];
+                for (var _n5 = 0; _n5 < _this5.afferentNodesCount * _this5.gpu_batch_size; _n5++) {
+                    stateSetT[_n5 * 4] = stateSet[_n5];
+                    stateSetT[_n5 * 4 + 1] = 0.0;
+                    stateSetT[_n5 * 4 + 2] = 0.0;
+                    stateSetT[_n5 * 4 + 3] = 0.0;
                 }
 
-                for (var _n6 = 0; _n6 < this.layerCount; _n6++) {
-                    this.comp_renderer_nodes.gpufG.processKernel(this.comp_renderer_nodes.gpufG.kernels[0], true, true);
-                }this._sce.getLoadedProject().getActiveStage().tick();
+                _this5.comp_renderer_nodes.setArg("afferentNodesT", function () {
+                    return stateSetT;
+                });
+                //this.comp_renderer_nodes.setArg("afferentNodesTWidth", () => {return this.comp_renderer_nodes.getBuffers()["afferentNodesT"].W;});
+
+                for (var _n6 = 0; _n6 < _this5.layerCount; _n6++) {
+                    _this5.comp_renderer_nodes.gpufG.processKernel(_this5.comp_renderer_nodes.gpufG.kernels[0], true, true);
+                }_this5._sce.getLoadedProject().getActiveStage().tick();
 
                 //if(jsonIn.readOutput === undefined || jsonIn.readOutput === null || (jsonIn.readOutput !== null && jsonIn.readOutput === true)) {
                 var o = [[]];
                 var currO = 0;
-                for (var _n7 = 0; _n7 < this.efferentNodesCount * this.gpu_batch_size; _n7++) {
-                    if (o[currO].length === this.efferentNodesCount) {
+                for (var _n7 = 0; _n7 < _this5.efferentNodesCount * _this5.gpu_batch_size; _n7++) {
+                    if (o[currO].length === _this5.efferentNodesCount) {
                         o.push([]);
                         currO++;
                     }
 
-                    var u = this.getNeuronOutput(this.efferentNeuron[o[currO].length], loc[currO]);
+                    var u = _this5.getNeuronOutput(_this5.efferentNeuron[o[currO].length], loc[currO]);
                     if (isNaN(u[2]) === true) debugger;
                     o[currO].push({ "output": u[loc[currO][1]] });
                 }
@@ -3067,7 +3053,7 @@ var Graph = exports.Graph = function () {
                             maxval = o[_n8][nb].output;
                         }
                     }
-                    this.maxacts.push({ "action": maxk, "value": maxval, "values": vals, "y": y, "o": outs, "sm": sm, "ced": ced, "smd": smd });
+                    _this5.maxacts.push({ "action": maxk, "value": maxval, "values": vals, "y": y, "o": outs, "sm": sm, "ced": ced, "smd": smd });
                 }
 
                 // softmax
@@ -3082,6 +3068,10 @@ var Graph = exports.Graph = function () {
                     }
                 }*/
                 //}
+            };
+
+            for (var r = 0; r < this.batch_repeats; r++) {
+                _loop(r);
             }
             if (this.onAction !== null) this.onAction(this.maxacts);
         }
@@ -3182,11 +3172,11 @@ var Graph = exports.Graph = function () {
 
             var cr = 0;
 
-            var _loop3 = function _loop3(r) {
+            var _loop2 = function _loop2(r) {
                 var dd = [];
                 for (var _n9 = 0; _n9 < _this6.gpu_batch_size; _n9++) {
-                    for (var _nb2 = 0; _nb2 < _this6.efferentNodesCount; _nb2++) {
-                        var cc = _this6.maxacts[cr].o[_nb2];
+                    for (var _nb = 0; _nb < _this6.efferentNodesCount; _nb++) {
+                        var cc = _this6.maxacts[cr].o[_nb];
                         dd.push(cc);
                     }
                     cr++;
@@ -3201,7 +3191,7 @@ var Graph = exports.Graph = function () {
 
                 _this6.comp_renderer_nodes.gpufG.processKernel(_this6.comp_renderer_nodes.gpufG.kernels[0], true, true);
 
-                var _loop4 = function _loop4(_n11) {
+                var _loop3 = function _loop3(_n11) {
                     _this6.comp_renderer_nodes.setArg("currentTrainLayer", function () {
                         return _n11;
                     });
@@ -3223,12 +3213,12 @@ var Graph = exports.Graph = function () {
                 };
 
                 for (var _n11 = _this6.layerCount - 2; _n11 >= 0; _n11--) {
-                    _loop4(_n11);
+                    _loop3(_n11);
                 }
             };
 
             for (var r = 0; r < this.batch_repeats; r++) {
-                _loop3(r);
+                _loop2(r);
             }
 
             if (this.onTrained !== null) this.onTrained(cost);
@@ -3895,16 +3885,16 @@ var Graph = exports.Graph = function () {
 
             var oppositeId = 0;
 
-            for (var o = 0; o < 2; o++) {
+            for (var _o = 0; _o < 2; _o++) {
                 for (var n = 0; n < this.mesh_arrows.vertexArray.length / 4; n++) {
                     var idxVertex = n * 4;
-                    if (o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
+                    if (_o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowPosXYZW.push(0.0, 0.0, 0.0, 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexPos.push(this.mesh_arrows.vertexArray[idxVertex], this.mesh_arrows.vertexArray[idxVertex + 1], this.mesh_arrows.vertexArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex + 1], this.mesh_arrows.normalArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex + 1], this.mesh_arrows.textureArray[idxVertex + 2], 1.0);
-                    if (o === 0) {
+                    if (_o === 0) {
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.repeatId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                         if (jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
@@ -4090,16 +4080,18 @@ var Graph = exports.Graph = function () {
                 return _this10.currentNodeId - _this10.efferentNodesCount;
             });
 
-            var arrUniformsCount = Math.ceil(this.afferentNodesCount / 64);
+            var d = Utils.fract(this.afferentNodesCount / 64);
+            d = d === 0.0 ? 64 : d * 64;
             for (var n = 0; n < this.lett.length; n++) {
-                for (var nb = 0; nb < arrUniformsCount; nb++) {
-                    this.comp_renderer_nodes.setArg("afferentNodes" + this.lett[n] + nb, function () {
-                        return new Float32Array(64);
-                    });
-                }this.comp_renderer_nodes.setArg("efferentNodes" + this.lett[n], function () {
+                this.comp_renderer_nodes.setArg("efferentNodes" + this.lett[n], function () {
                     return new Float32Array(_this10.efferentNodesCount);
                 });
-            }
+            }this.comp_renderer_nodes.setArg("afferentNodesT", function () {
+                return new Float32Array(_this10.afferentNodesCount * _this10.gpu_batch_size * 4);
+            });
+            this.comp_renderer_nodes.setArg("afferentNodesTWidth", function () {
+                return _this10.comp_renderer_nodes.getBuffers()["afferentNodesT"].W;
+            });
 
             this.comp_renderer_nodes.setArg("isNode", function () {
                 return 1;
@@ -4108,7 +4100,7 @@ var Graph = exports.Graph = function () {
                 return _this10.comp_renderer_nodes.getBuffers()["posXYZW"].W;
             });
 
-            var _loop5 = function _loop5(argNameKey) {
+            var _loop4 = function _loop4(argNameKey) {
                 var expl = _this10._customArgs[argNameKey].arg.split("*");
                 if (expl.length > 0) {
                     // argument is type buffer
@@ -4119,7 +4111,7 @@ var Graph = exports.Graph = function () {
             };
 
             for (var argNameKey in this._customArgs) {
-                _loop5(argNameKey);
+                _loop4(argNameKey);
             }
 
             this.generateNodesImage();
@@ -4182,7 +4174,7 @@ var Graph = exports.Graph = function () {
                 return 1.0;
             });
 
-            var _loop6 = function _loop6(argNameKey) {
+            var _loop5 = function _loop5(argNameKey) {
                 var expl = _this11._customArgs[argNameKey].arg.split("*");
                 if (expl.length > 0) // argument is type buffer
                     _this11.comp_renderer_nodesText.setArg(argNameKey, function () {
@@ -4191,7 +4183,7 @@ var Graph = exports.Graph = function () {
             };
 
             for (var argNameKey in this._customArgs) {
-                _loop6(argNameKey);
+                _loop5(argNameKey);
             }
         }
     }, {
@@ -4209,7 +4201,7 @@ var Graph = exports.Graph = function () {
 
             console.log(Object.keys(this._links).length + " links");
 
-            var _loop7 = function _loop7(na) {
+            var _loop6 = function _loop6(na) {
                 _this12.linksObj[na].componentRenderer.setArg("data", function () {
                     return _this12.linksObj[na].arrayLinkData;
                 });
@@ -4248,7 +4240,7 @@ var Graph = exports.Graph = function () {
                     return _this12.linksObj[na].componentRenderer.getBuffers()["data"].W;
                 });
 
-                var _loop8 = function _loop8(argNameKey) {
+                var _loop7 = function _loop7(argNameKey) {
                     var expl = _this12._customArgs[argNameKey].arg.split("*");
                     if (expl.length > 0) {
                         // argument is type buffer
@@ -4259,12 +4251,12 @@ var Graph = exports.Graph = function () {
                 };
 
                 for (var argNameKey in _this12._customArgs) {
-                    _loop8(argNameKey);
+                    _loop7(argNameKey);
                 }
             };
 
             for (var na = 0; na < this.linksObj.length; na++) {
-                _loop7(na);
+                _loop6(na);
             }
 
             this.updateArrows();
@@ -4276,7 +4268,7 @@ var Graph = exports.Graph = function () {
         value: function updateArrows() {
             var _this13 = this;
 
-            var _loop9 = function _loop9(na) {
+            var _loop8 = function _loop8(na) {
                 _this13.arrowsObj[na].componentRenderer.setArg("data", function () {
                     return _this13.arrowsObj[na].arrayArrowData;
                 });
@@ -4322,7 +4314,7 @@ var Graph = exports.Graph = function () {
                     return _this13.arrowsObj[na].componentRenderer.getBuffers()["data"].W;
                 });
 
-                var _loop10 = function _loop10(argNameKey) {
+                var _loop9 = function _loop9(argNameKey) {
                     var expl = _this13._customArgs[argNameKey].arg.split("*");
                     if (expl.length > 0) {
                         // argument is type buffer
@@ -4333,12 +4325,12 @@ var Graph = exports.Graph = function () {
                 };
 
                 for (var argNameKey in _this13._customArgs) {
-                    _loop10(argNameKey);
+                    _loop9(argNameKey);
                 }
             };
 
             for (var na = 0; na < this.arrowsObj.length; na++) {
-                _loop9(na);
+                _loop8(na);
             }
         }
     }, {
@@ -4613,19 +4605,14 @@ var KERNEL_DIR = exports.KERNEL_DIR = function () {
             /////////////////////////////////////////////////
             // OUTPUT
             /////////////////////////////////////////////////
-            var str = "\n            if(freezeOutput == 0.0) {\n                if(nodeId < afferentNodesCount) {\n                    for(float n=0.0; n < 256.0; n+=1.0) {\n                        if(n >= afferentNodesCount) {\n                            break;\n                        }\n                        if(nodeId == n) {";
-            for (var n = arrUniformsCount - 1; n >= 0; n--) {
-                var cond = n === arrUniformsCount - 1 ? "if" : "else if";
-                str += "\n                                " + cond + "(nodeId >= " + (n * 64).toFixed(1) + ") {\n                                    foutputA = afferentNodesA" + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputB = afferentNodesB") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputC = afferentNodesC") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputD = afferentNodesD") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputE = afferentNodesE") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputF = afferentNodesF") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    foutputG = afferentNodesG") + n + ("[int(n-(" + (n * 64).toFixed(1) + "))];\n                                    \n                                }");
-            }
-            str += "            break;\n                        }\n                    }\n                } else {\n                    if(currentBiasNode == 0.0) {\n                        if(nodeId >= " + efferentStart.toFixed(1) + (") {\n                            foutputA = netChildInputSumA;\n                            foutputB = netChildInputSumB;\n                            foutputC = netChildInputSumC;\n                            foutputD = netChildInputSumD;\n                            foutputE = netChildInputSumE;\n                            foutputF = netChildInputSumF;\n                            foutputG = netChildInputSumG;\n                        } else {                                  \n                            foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; " + "\n                            foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;\n                            foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;\n                            foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;\n                            foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;\n                            foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;\n                            foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;\n                        }\n                    } else {\n                        foutputA = 1.0;\n                        foutputB = 1.0;\n                        foutputC = 1.0;\n                        foutputD = 1.0;\n                        foutputE = 1.0;\n                        foutputF = 1.0;\n                        foutputG = 1.0;\n                    }\n                }\n            } else {\n                foutputA = currentDataB.z;\n                foutputB = currentDataF.x;\n                foutputC = currentDataF.z;\n                foutputD = currentDataG.x;\n                foutputE = currentDataG.z;\n                foutputF = currentDataH.x;\n                foutputG = currentDataH.z;\n            }");
+            var str = "\n            if(freezeOutput == 0.0) {\n                if(nodeId < afferentNodesCount) {                \n                    vec2 idA = get_global_id(nodeId, afferentNodesTWidth, 1.0);\n                    vec4 tA = afferentNodesT[idA];\n                    foutputA = tA.r;\n                    \n                    vec2 idB = get_global_id(nodeId+(afferentNodesCount), afferentNodesTWidth, 1.0);\n                    vec4 tB = afferentNodesT[idB];\n                    foutputB = tB.r;\n                    \n                    vec2 idC = get_global_id(nodeId+(afferentNodesCount*2.0), afferentNodesTWidth, 1.0);\n                    vec4 tC = afferentNodesT[idC];\n                    foutputC = tC.r;\n                    \n                    vec2 idD = get_global_id(nodeId+(afferentNodesCount*3.0), afferentNodesTWidth, 1.0);\n                    vec4 tD = afferentNodesT[idD];\n                    foutputD = tD.r;\n                    \n                    vec2 idE = get_global_id(nodeId+(afferentNodesCount*4.0), afferentNodesTWidth, 1.0);\n                    vec4 tE = afferentNodesT[idE];\n                    foutputE = tE.r;\n                    \n                    vec2 idF = get_global_id(nodeId+(afferentNodesCount*5.0), afferentNodesTWidth, 1.0);\n                    vec4 tF = afferentNodesT[idF];\n                    foutputF = tF.r;\n                    \n                    vec2 idG = get_global_id(nodeId+(afferentNodesCount*6.0), afferentNodesTWidth, 1.0);\n                    vec4 tG = afferentNodesT[idG];\n                    foutputG = tG.r;\n                } else {\n                    if(currentBiasNode == 0.0) {\n                        if(nodeId >= " + efferentStart.toFixed(1) + (") {\n                            foutputA = netChildInputSumA;\n                            foutputB = netChildInputSumB;\n                            foutputC = netChildInputSumC;\n                            foutputD = netChildInputSumD;\n                            foutputE = netChildInputSumE;\n                            foutputF = netChildInputSumF;\n                            foutputG = netChildInputSumG;\n                        } else {                                  \n                            foutputA = (netChildInputSumA <= 0.0) ? 0.01*netChildInputSumA : netChildInputSumA; " + "\n                            foutputB = (netChildInputSumB <= 0.0) ? 0.01*netChildInputSumB : netChildInputSumB;\n                            foutputC = (netChildInputSumC <= 0.0) ? 0.01*netChildInputSumC : netChildInputSumC;\n                            foutputD = (netChildInputSumD <= 0.0) ? 0.01*netChildInputSumD : netChildInputSumD;\n                            foutputE = (netChildInputSumE <= 0.0) ? 0.01*netChildInputSumE : netChildInputSumE;\n                            foutputF = (netChildInputSumF <= 0.0) ? 0.01*netChildInputSumF : netChildInputSumF;\n                            foutputG = (netChildInputSumG <= 0.0) ? 0.01*netChildInputSumG : netChildInputSumG;\n                        }\n                    } else {\n                        foutputA = 1.0;\n                        foutputB = 1.0;\n                        foutputC = 1.0;\n                        foutputD = 1.0;\n                        foutputE = 1.0;\n                        foutputF = 1.0;\n                        foutputG = 1.0;\n                    }\n                }\n            } else {\n                foutputA = currentDataB.z;\n                foutputB = currentDataF.x;\n                foutputC = currentDataF.z;\n                foutputD = currentDataG.x;\n                foutputE = currentDataG.z;\n                foutputF = currentDataH.x;\n                foutputG = currentDataH.z;\n            }");
 
             /////////////////////////////////////////////////
             // ERROR
             /////////////////////////////////////////////////
-            for (var _n = efferentStart; _n < efferentStart + efferentNodesCount; _n++) {
-                var _cond = _n === efferentStart ? "if" : "else if";
-                str += "\n            " + _cond + "(nodeId == " + _n.toFixed(1) + (") {\n                if(freezeOutput == 0.0) {\n                    foutputA = netChildInputSumA; " + " \n                    foutputB = netChildInputSumB;\n                    foutputC = netChildInputSumC;\n                    foutputD = netChildInputSumD;\n                    foutputE = netChildInputSumE;\n                    foutputF = netChildInputSumF;\n                    foutputG = netChildInputSumG;\n                } else {\n                    foutputA = currentDataB.z;\n                    foutputB = currentDataF.x;\n                    foutputC = currentDataF.z;\n                    foutputD = currentDataG.x;\n                    foutputE = currentDataG.z;\n                    foutputF = currentDataH.x;\n                    foutputG = currentDataH.z;\n                }               \n                netParentErrorWeightA = efferentNodesA[") + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightB = efferentNodesB[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightC = efferentNodesC[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightD = efferentNodesD[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightE = efferentNodesE[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightF = efferentNodesF[" + Math.round(_n - efferentStart) + "];\n                netParentErrorWeightG = efferentNodesG[" + Math.round(_n - efferentStart) + "];\n            }";
+            for (var n = efferentStart; n < efferentStart + efferentNodesCount; n++) {
+                var cond = n === efferentStart ? "if" : "else if";
+                str += "\n            " + cond + "(nodeId == " + n.toFixed(1) + (") {\n                if(freezeOutput == 0.0) {\n                    foutputA = netChildInputSumA; " + " \n                    foutputB = netChildInputSumB;\n                    foutputC = netChildInputSumC;\n                    foutputD = netChildInputSumD;\n                    foutputE = netChildInputSumE;\n                    foutputF = netChildInputSumF;\n                    foutputG = netChildInputSumG;\n                } else {\n                    foutputA = currentDataB.z;\n                    foutputB = currentDataF.x;\n                    foutputC = currentDataF.z;\n                    foutputD = currentDataG.x;\n                    foutputE = currentDataG.z;\n                    foutputF = currentDataH.x;\n                    foutputG = currentDataH.z;\n                }               \n                netParentErrorWeightA = efferentNodesA[") + Math.round(n - efferentStart) + "];\n                netParentErrorWeightB = efferentNodesB[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightC = efferentNodesC[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightD = efferentNodesD[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightE = efferentNodesE[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightF = efferentNodesF[" + Math.round(n - efferentStart) + "];\n                netParentErrorWeightG = efferentNodesG[" + Math.round(n - efferentStart) + "];\n            }";
             }
             return str;
         }

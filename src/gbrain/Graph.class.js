@@ -447,6 +447,8 @@ export class Graph {
             'float currentTrainLayer': () => {return null;},
             'float layerCount': () => {return null;},
             "float learningRate": () => {return null;},
+            "float4* afferentNodesT": () => {return null;},
+            "float afferentNodesTWidth": () => {return null;},
             "float batch_repeats": () => {return null;},
             'float afferentNodesCount': () => {return null;},
             'float efferentNodesCount': () => {return null;},
@@ -464,15 +466,9 @@ export class Graph {
             'float4* nodesImg': () => {return null;},
             'float4* nodesImgCrosshair': () => {return null;}
             };
-        let aC = (this.afferentNodesCount === 0) ? 1: this.afferentNodesCount;
         let eC = (this.efferentNodesCount === 0) ? 1: this.efferentNodesCount;
-        let arrUniformsCount = Math.ceil(aC/64);
-        for(let n=0; n < this.lett.length; n++) {
-            for(let nb=0; nb < arrUniformsCount; nb++)
-                varDef_VFPNode['float afferentNodes'+this.lett[n]+nb+'[64]'] = () => {return null;};
-
+        for(let n=0; n < this.lett.length; n++)
             varDef_VFPNode['float efferentNodes'+this.lett[n]+'['+eC+']'] = () => {return null;};
-        }
 
         if(this.layout.argsDirection !== undefined && this.layout.argsDirection !== null) {
             for(let n=0; n < this.layout.argsDirection.length; n++)
@@ -1280,22 +1276,16 @@ export class Graph {
             for(let n=stateSet.length; n < this.afferentNodesCount*this.gpu_batch_size; n++)
                 stateSet[n] = 0.0;
 
-
-
-            for(let n=0; n < this.gpu_batch_size; n++) {
-                let ts = stateSet.slice(0, this.afferentNodesCount);
-
-                let arrUniformsCount = Math.ceil(this.afferentNodesCount/64);
-                let d = Utils.fract(this.afferentNodesCount/64);
-                d = (d === 0.0) ? 64 : d*64;
-                for(let nb=0; nb < arrUniformsCount; nb++) {
-                    let cut = (nb === arrUniformsCount-1) ? d : 64;
-                    this.comp_renderer_nodes.setArg("afferentNodes"+this.lett[n]+nb, () => {return ts.slice(0, cut);});
-                    ts = ts.slice(cut);
-                }
-                stateSet = stateSet.slice(this.afferentNodesCount);
+            let stateSetT = [];
+            for(let n=0; n < this.afferentNodesCount*this.gpu_batch_size; n++) {
+                stateSetT[(n*4)] = stateSet[n];
+                stateSetT[(n*4)+1] = 0.0;
+                stateSetT[(n*4)+2] = 0.0;
+                stateSetT[(n*4)+3] = 0.0;
             }
 
+            this.comp_renderer_nodes.setArg("afferentNodesT", () => {return stateSetT;});
+            //this.comp_renderer_nodes.setArg("afferentNodesTWidth", () => {return this.comp_renderer_nodes.getBuffers()["afferentNodesT"].W;});
 
             for(let n=0; n < (this.layerCount); n++)
                 this.comp_renderer_nodes.gpufG.processKernel(this.comp_renderer_nodes.gpufG.kernels[0], true, true);
@@ -2321,13 +2311,13 @@ export class Graph {
         this.comp_renderer_nodes.setArg("efferentNodesCount", () => {return this.efferentNodesCount;});
         this.comp_renderer_nodes.setArg("efferentStart", () => {return this.currentNodeId-this.efferentNodesCount;});
 
-        let arrUniformsCount = Math.ceil(this.afferentNodesCount/64);
-        for(let n=0; n < this.lett.length; n++) {
-            for(let nb=0; nb < arrUniformsCount; nb++)
-                this.comp_renderer_nodes.setArg("afferentNodes"+this.lett[n]+nb, () => {return new Float32Array(64);});
-
+        let d = Utils.fract(this.afferentNodesCount/64);
+        d = (d === 0.0) ? 64 : d*64;
+        for(let n=0; n < this.lett.length; n++)
             this.comp_renderer_nodes.setArg("efferentNodes"+this.lett[n], () => {return new Float32Array(this.efferentNodesCount);});
-        }
+
+        this.comp_renderer_nodes.setArg("afferentNodesT", () => {return new Float32Array(this.afferentNodesCount*this.gpu_batch_size*4);});
+        this.comp_renderer_nodes.setArg("afferentNodesTWidth", () => {return this.comp_renderer_nodes.getBuffers()["afferentNodesT"].W;});
 
         this.comp_renderer_nodes.setArg("isNode", () => {return 1;});
         this.comp_renderer_nodes.setArg("bufferNodesWidth", () => {return this.comp_renderer_nodes.getBuffers()["posXYZW"].W;});
