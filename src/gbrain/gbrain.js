@@ -63,7 +63,8 @@ export class GBrain {
     makeLayers(layer_defs) {
         let ml = (w, h, isInput, type, posZ) => {
             this.graph.layer_defs[this.graph.layerCount].hasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" ||
-                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "regression") ? 1.0 : 0.0;
+                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "regression" ||
+                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "classification") ? 1.0 : 0.0;
 
             if(type === "conv") {
                 w -= 2;
@@ -95,87 +96,76 @@ export class GBrain {
             }
         };
 
+        let ll = (h, originLayer, weights) => {
+            let offsetZ = -5.0*(h/2);
+            let we = weights;
+            let newWe = [];
+            if(weights !== undefined && weights !== null) {
+                for(let n=0; n < h; n++) {
+                    for(let nb=0; nb < weights.length; nb=nb+h)
+                        newWe.push(weights[nb+n]);
+                }
+            }
+            let arr = [];
+            for(let n=0; n < h; n++) {
+                let name = "O"+this.outputCount;
+                arr.push(name);
+                this.graph.addEfferentNeuron(name, [this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
+                this.graph.connectNeuronLayerWithNeuron({   "neuronLayer": originLayer,
+                                                            "neuron": "O"+this.outputCount,
+                                                            "weight": ((weights !== undefined && weights !== null) ? newWe.slice(0, originLayer.length) : null),
+                                                            "layer_neurons_count": originLayer.length,
+                                                            "layerNum": this.graph.layerCount-1});
+                if(weights !== undefined && weights !== null)
+                    newWe = newWe.slice(originLayer.length);
+
+                this.outputCount++;
+                offsetZ += 5.0;
+            }
+
+            return arr;
+        };
+
 
         this.graph.layer_defs = layer_defs;
         this.offsetX = 0;
 
         let lType = {   "input": (l) => {
-                            let newNeurons = (l.out_sx !== undefined)
-                                ? ml(l.out_sx, l.out_sy, 1, "input", 0, false)
-                                : ml(1, l.depth, 1, "input", 0, false);
+                            this.graph.layer_defs[this.graph.layerCount].neurons = (l.out_sx !== undefined)
+                                                                                        ? ml(l.out_sx, l.out_sy, 1, l.type, 0)
+                                                                                        : ml(1, l.depth, 1, l.type, 0);
 
-                            this.layerNodes.push(newNeurons);
-
-                            this.graph.layerCount++;
                             this.offsetX += ((l.out_sx !== undefined) ? 100 : 30);
                         },
                         "fc": (l) => {
-                            let newNeurons = ml(1, l.num_neurons, 0, "fc", 0, false);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, this.layerNodes[this.layerNodes.length-1], newNeurons, l.weights, "fc", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-1].length);
+                            this.graph.layer_defs[this.graph.layerCount].neurons = ml(1, l.num_neurons, 0, l.type, 0);
+                            mr(null, this.graph.layer_defs[this.graph.layerCount-1].neurons, this.graph.layer_defs[this.graph.layerCount].neurons, l.weights, l.type, this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.graph.layer_defs[this.graph.layerCount-1].length);
 
-                            this.layerNodes.push(newNeurons);
-
-                            this.graph.layerCount++;
                             this.offsetX += 30;
                         },
                         "conv": (l) => {
-                            let layerOrig =this.layerNodes[this.layerNodes.length-1];
+                            this.graph.layer_defs[this.graph.layerCount].neurons = [];
 
-                            let newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", 180);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-1].length, 0);
-                            this.layerNodes.push(newNeurons);
+                            let displ = [180,120,60,-60,-120,-180];
+                            for(let n=0; n < displ.length; n++) {
+                                let newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, l.type, displ[n]);
+                                mr(this.graph.layer_defs[this.graph.layerCount].out_sx, this.graph.layer_defs[this.graph.layerCount-1].neurons, newNeurons, l.weights, l.type, this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.graph.layer_defs[this.graph.layerCount-1].length, n);
+                                this.graph.layer_defs[this.graph.layerCount].neurons = this.graph.layer_defs[this.graph.layerCount].neurons.concat(newNeurons);
+                            }
 
-                            newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", 120);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-2].length, 1);
-                            this.layerNodes[this.layerNodes.length-1] = this.layerNodes[this.layerNodes.length-1].concat(newNeurons);
-
-                            newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", 60);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-2].length, 2);
-                            this.layerNodes[this.layerNodes.length-1] = this.layerNodes[this.layerNodes.length-1].concat(newNeurons);
-
-                            newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", -60);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-2].length, 3);
-                            this.layerNodes[this.layerNodes.length-1] = this.layerNodes[this.layerNodes.length-1].concat(newNeurons);
-
-                            newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", -120);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-2].length, 4);
-                            this.layerNodes[this.layerNodes.length-1] = this.layerNodes[this.layerNodes.length-1].concat(newNeurons);
-
-                            newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, "conv", -180);
-                            mr(this.graph.layer_defs[this.graph.layerCount].out_sx, layerOrig, newNeurons, l.weights, "conv", this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.layerNodes[this.layerNodes.length-2].length, 5);
-                            this.layerNodes[this.layerNodes.length-1] = this.layerNodes[this.layerNodes.length-1].concat(newNeurons);
-
-                            this.graph.layerCount++;
                             this.offsetX += 100;
                         },
                         "regression": (l) => {
-                            let offsetZ = -5.0*(l.num_neurons/2);
-                            let we = l.weights;
-                            let newWe = [];
-                            if(l.weights !== undefined && l.weights !== null) {
-                                for(let n=0; n < l.num_neurons; n++) {
-                                    for(let nb=0; nb < l.weights.length; nb=nb+l.num_neurons)
-                                        newWe.push(l.weights[nb+n]);
-                                }
-                            }
-                            for(let n=0; n < l.num_neurons; n++) {
-                                this.graph.addEfferentNeuron("O"+this.outputCount, [this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
-                                this.graph.connectNeuronLayerWithNeuron({   "neuronLayer": this.layerNodes[this.layerNodes.length-1],
-                                                                            "neuron": "O"+this.outputCount,
-                                                                            "weight": ((l.weights !== undefined && l.weights !== null) ? newWe.slice(0, this.layerNodes[this.layerNodes.length-1].length) : null),
-                                                                            "layer_neurons_count": this.layerNodes[this.layerNodes.length-2].length*this.layerNodes[this.layerNodes.length-1].length,
-                                                                            "layerNum": this.graph.layerCount-1});
-                                if(l.weights !== undefined && l.weights !== null)
-                                    newWe = newWe.slice(this.layerNodes[this.layerNodes.length-1].length);
-
-                                this.outputCount++;
-                                offsetZ += 5.0;
-                            }
-                            this.graph.layerCount++;
+                            this.graph.layer_defs[this.graph.layerCount].neurons = ll(l.num_neurons, this.graph.layer_defs[this.graph.layerCount-1].neurons, l.weights);
+                        },
+                        "classification": (l) => {
+                            this.graph.layer_defs[this.graph.layerCount].neurons = ll(l.num_classes, this.graph.layer_defs[this.graph.layerCount-1].neurons, l.weights);
                         }};
-        for(let n=0; n < layer_defs.length; n++) {
-            let l = layer_defs[n];
+        for(let n=0; n < this.graph.layer_defs.length; n++) {
+            let l = this.graph.layer_defs[n];
             lType[l.type](l);
+
+            this.graph.layerCount++;
         }
 
         this.graph.createWebGLBuffers();
@@ -190,16 +180,9 @@ export class GBrain {
             if(jsonIn.layers[n].layer_type === "input") {
 
 
-            } else if(jsonIn.layers[n].layer_type === "fc") {
-                jsonIn.layers[n].weights = [];
-                for(let key in jsonIn.layers[n].filters[0].w) {
-                    for(let nb=0; nb < jsonIn.layers[n].filters.length; nb++) {
-                        jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
-                    }
-                }
-                for(let key in jsonIn.layers[n].biases.w)
-                    jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
-            } else if(jsonIn.layers[n].layer_type === "regression") {
+            } else if(  jsonIn.layers[n].layer_type === "fc" ||
+                        jsonIn.layers[n].layer_type === "conv" ||
+                        jsonIn.layers[n].layer_type === "regression") {
                 jsonIn.layers[n].weights = [];
                 for(let key in jsonIn.layers[n].filters[0].w) {
                     for(let nb=0; nb < jsonIn.layers[n].filters.length; nb++) {
@@ -211,12 +194,19 @@ export class GBrain {
             }
         }
         for(let n=0; n < jsonIn.layers.length; n++) {
-            if(jsonIn.layers[n].layer_type === "input")
-                layer_defs.push({"type": "input", "depth": jsonIn.layers[n].out_depth});
-            else if(jsonIn.layers[n].layer_type === "fc")
-                layer_defs.push({"type": "fc", "num_neurons": jsonIn.layers[n].out_depth, "activation": "relu", "weights": jsonIn.layers[n].weights});
+            if(jsonIn.layers[n].layer_type === "input") {
+                if(jsonIn.layers[n].out_sx !== undefined)
+                    layer_defs.push({"type": jsonIn.layers[n].layer_type, "out_sx": jsonIn.layers[n].out_sx, "out_sy": jsonIn.layers[n].out_sy});
+                else
+                    layer_defs.push({"type": jsonIn.layers[n].layer_type, "depth": jsonIn.layers[n].out_depth});
+            } else if(jsonIn.layers[n].layer_type === "fc")
+                layer_defs.push({"type": jsonIn.layers[n].layer_type, "num_neurons": jsonIn.layers[n].out_depth, "activation": "relu", "weights": jsonIn.layers[n].weights});
+            else if(jsonIn.layers[n].layer_type === "conv")
+                layer_defs.push({"type": jsonIn.layers[n].layer_type, "num_neurons": jsonIn.layers[n].out_depth, "activation": "relu", "weights": jsonIn.layers[n].weights});
             else if(jsonIn.layers[n].layer_type === "regression")
-                layer_defs.push({"type": "regression", "num_neurons": jsonIn.layers[n].out_depth, "weights": jsonIn.layers[n].weights});
+                layer_defs.push({"type": jsonIn.layers[n].layer_type, "num_neurons": jsonIn.layers[n].out_depth, "weights": jsonIn.layers[n].weights});
+            else if(jsonIn.layers[n].layer_type === "classification")
+                layer_defs.push({"type": jsonIn.layers[n].layer_type, "num_classes": jsonIn.layers[n].out_depth, "weights": jsonIn.layers[n].weights});
         }
 
         this.sce.target.innerHTML = "";

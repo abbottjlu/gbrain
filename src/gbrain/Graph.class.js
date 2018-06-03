@@ -620,13 +620,6 @@ export class Graph {
 
         this.updateNodes();
         this.updateLinks();
-
-        this.comp_renderer_nodes.setArg("enableTrain", () => {return 1.0;});
-        this.comp_renderer_nodes.gpufG.enableKernel(1);
-        this.comp_renderer_nodes.setArg("currentTrainLayer", () => {return -10.0;});
-        this._sce.getLoadedProject().getActiveStage().tick();
-        this.comp_renderer_nodes.gpufG.disableKernel(1);
-        this.comp_renderer_nodes.setArg("enableTrain", () => {return 0.0;});
     };
 
     mouseDown() {
@@ -964,104 +957,6 @@ export class Graph {
 
     /**
      * @param {Object} jsonIn
-     * @param {int} jsonIn.w
-     * @param {Array<int>} jsonIn.neuronLayerOrigin
-     * @param {Array<int>} jsonIn.neuronLayerTarget
-     * @param {number|null|Array<number>} [jsonIn.weight]
-     * @param {int} [jsonIn.layer_neurons_count]
-     * @param {number} [jsonIn.multiplier=1.0]
-     * @param {int} jsonIn.layerNum
-     * @param {int} jsonIn.hasBias
-     * @param {int} jsonIn.convMatrixId
-     */
-    connectConvXYNeuronsFromXYNeurons(jsonIn) {
-        let convMatrix = {};
-        convMatrix[0] = [ // emboss
-            -2.0,   -1.0,   0.0,
-            -1.0,   1.0,    1.0,
-            0.0,    1.0,    2.0];
-        convMatrix[1] = [ // bottom sobel
-            -1.0,   -2.0,   -1.0,
-            0.0,   0.0,    0.0,
-            1.0,    2.0,    1.0];
-        convMatrix[2] = [ // left sobel
-            1.0,   0.0,   -1.0,
-            2.0,   0.0,    -2.0,
-            1.0,   0.0,    -1.0];
-        convMatrix[3] = [ // outline
-            -1.0,   -1.0,   -1.0,
-            -1.0,   8.0,    -1.0,
-            -1.0,    -1.0,    -1.0];
-        convMatrix[4] = [ // right sobel
-            -1.0,   0.0,   1.0,
-            -2.0,   0.0,   2.0,
-            -1.0,   0.0,   1.0];
-        convMatrix[5] = [ // sharpen
-            0.0,   -1.0,   0.0,
-            -1.0,   5.0,   -1.0,
-            0.0,    -1.0,  0.0];
-
-        let idds = [{x:-1, y:-1},
-                    {x:0,  y:-1},
-                    {x:1,  y:-1},
-                    {x:-1, y:0},
-                    {x:0,  y:0},
-                    {x:1,  y:0},
-                    {x:-1, y:1},
-                    {x:0,  y:1},
-                    {x:1,  y:1}];
-
-        let arr = [];
-        let xT = 0;
-        let yT = 0;
-        let xO = 1;
-        let yO = 1;
-        for(let n=0; n < ((jsonIn.hasBias === 1.0) ? jsonIn.neuronLayerTarget.length-1 : jsonIn.neuronLayerTarget.length); n++) {
-            if(xT === jsonIn.w) {
-                xT = 0;
-                yT++;
-                xO = 1;
-                yO++;
-            } else {
-                xT++;
-                xO++;
-            }
-
-            //let idT = (yT*jsonIn.w)+xT;
-
-            let idConvM = 0;
-            for(let nb=0; nb < idds.length; nb++) {
-                let xOf = xO+idds[nb].x;
-                let yOf = yO+idds[nb].y;
-
-                let idO = (yOf*(jsonIn.w+2))+xOf;
-
-                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
-                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
-                                    "activationFunc": jsonIn.activationFunc,
-                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
-                                    "layer_neurons_count": jsonIn.layer_neurons_count,
-                                    "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
-                                    "layerNum": jsonIn.layerNum});
-                idConvM++;
-            }
-            if(jsonIn.hasBias === 1.0) {
-                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length-1].toString(),
-                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
-                                    "activationFunc": jsonIn.activationFunc,
-                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
-                                    "layer_neurons_count": jsonIn.layer_neurons_count,
-                                    "multiplier": jsonIn.multiplier,
-                                    "layerNum": jsonIn.layerNum});
-            }
-        }
-
-        return arr;
-    };
-
-
-    /**
-     * @param {Object} jsonIn
      * @param {String} jsonIn.neuronNameA
      * @param {String} jsonIn.neuronNameB
      * @param {int} [jsonIn.activationFunc=1.0] 1.0=use weight*data;0.0=use multiplier*data
@@ -1178,6 +1073,103 @@ export class Graph {
     };
 
     /**
+     * @param {Object} jsonIn
+     * @param {int} jsonIn.w
+     * @param {Array<int>} jsonIn.neuronLayerOrigin
+     * @param {Array<int>} jsonIn.neuronLayerTarget
+     * @param {number|null|Array<number>} [jsonIn.weight]
+     * @param {int} [jsonIn.layer_neurons_count]
+     * @param {number} [jsonIn.multiplier=1.0]
+     * @param {int} jsonIn.layerNum
+     * @param {int} jsonIn.hasBias
+     * @param {int} jsonIn.convMatrixId
+     */
+    connectConvXYNeuronsFromXYNeurons(jsonIn) {
+        let convMatrix = {};
+        convMatrix[0] = [ // emboss
+            -2.0,   -1.0,   0.0,
+            -1.0,   1.0,    1.0,
+            0.0,    1.0,    2.0];
+        convMatrix[1] = [ // bottom sobel
+            -1.0,   -2.0,   -1.0,
+            0.0,   0.0,    0.0,
+            1.0,    2.0,    1.0];
+        convMatrix[2] = [ // left sobel
+            1.0,   0.0,   -1.0,
+            2.0,   0.0,    -2.0,
+            1.0,   0.0,    -1.0];
+        convMatrix[3] = [ // outline
+            -1.0,   -1.0,   -1.0,
+            -1.0,   8.0,    -1.0,
+            -1.0,    -1.0,    -1.0];
+        convMatrix[4] = [ // right sobel
+            -1.0,   0.0,   1.0,
+            -2.0,   0.0,   2.0,
+            -1.0,   0.0,   1.0];
+        convMatrix[5] = [ // sharpen
+            0.0,   -1.0,   0.0,
+            -1.0,   5.0,   -1.0,
+            0.0,    -1.0,  0.0];
+
+        let idds = [{x:-1, y:-1},
+                    {x:0,  y:-1},
+                    {x:1,  y:-1},
+                    {x:-1, y:0},
+                    {x:0,  y:0},
+                    {x:1,  y:0},
+                    {x:-1, y:1},
+                    {x:0,  y:1},
+                    {x:1,  y:1}];
+
+        let arr = [];
+        let xT = 0;
+        let yT = 0;
+        let xO = 1;
+        let yO = 1;
+        for(let n=0; n < ((jsonIn.hasBias === 1.0) ? jsonIn.neuronLayerTarget.length-1 : jsonIn.neuronLayerTarget.length); n++) {
+            if(xT === jsonIn.w) {
+                xT = 0;
+                yT++;
+                xO = 1;
+                yO++;
+            } else {
+                xT++;
+                xO++;
+            }
+
+            //let idT = (yT*jsonIn.w)+xT;
+
+            let idConvM = 0;
+            for(let nb=0; nb < idds.length; nb++) {
+                let xOf = xO+idds[nb].x;
+                let yOf = yO+idds[nb].y;
+
+                let idO = (yOf*(jsonIn.w+2))+xOf;
+
+                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
+                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                                    "activationFunc": jsonIn.activationFunc,
+                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                    "layer_neurons_count": jsonIn.layer_neurons_count,
+                                    "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
+                                    "layerNum": jsonIn.layerNum});
+                idConvM++;
+            }
+            if(jsonIn.hasBias === 1.0) {
+                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length-1].toString(),
+                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                                    "activationFunc": jsonIn.activationFunc,
+                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                    "layer_neurons_count": jsonIn.layer_neurons_count,
+                                    "multiplier": jsonIn.multiplier,
+                                    "layerNum": jsonIn.layerNum});
+            }
+        }
+
+        return arr;
+    };
+
+    /**
      * @returns {String}
      */
     toJson() {
@@ -1186,57 +1178,59 @@ export class Graph {
         let outJson = {};
         outJson.layers = [];
 
-        outJson.layers.push({   "out_depth": this.layer_defs[0].depth,
-                                "layer_type": "input"});
-        let currStartN = this.layer_defs[0].depth+this.layer_defs[0].hasBias;
-
-        for(let n=1; n < this.layer_defs.length; n++) {
+        for(let n=0; n < this.layer_defs.length; n++) {
             let currHasBias = (this.layer_defs[n].hasBias !== undefined && this.layer_defs[n].hasBias !== null) ? this.layer_defs[n].hasBias : 0.0;
-            let currLayerDepthU = (this.layer_defs[n].depth !== undefined && this.layer_defs[n].depth !== null) ? this.layer_defs[n].depth : this.layer_defs[n].num_neurons;
-            let currLayerDepth = (this.layer_defs[n].depth !== undefined && this.layer_defs[n].depth !== null) ? (this.layer_defs[n].depth+currHasBias) : (this.layer_defs[n].num_neurons+currHasBias);
 
-            let lastHasBias = (this.layer_defs[n-1].hasBias !== undefined && this.layer_defs[n-1].hasBias !== null) ? this.layer_defs[n-1].hasBias : 0.0;
-            let lastLayerDepthU = (this.layer_defs[n-1].depth !== undefined && this.layer_defs[n-1].depth !== null) ? this.layer_defs[n-1].depth : (this.layer_defs[n-1].num_neurons);
-            let lastLayerDepth = (this.layer_defs[n-1].depth !== undefined && this.layer_defs[n-1].depth !== null) ? (this.layer_defs[n-1].depth+lastHasBias) : (this.layer_defs[n-1].num_neurons+lastHasBias);
+            if(n === 0) {
+                if(this.layer_defs[0].out_sx !== undefined && this.layer_defs[0].out_sx !== null && this.layer_defs[0].out_sx > 1) {
+                    outJson.layers.push({   "out_sx": this.layer_defs[0].out_sx,
+                                            "out_sy": this.layer_defs[0].out_sy,
+                                            "layer_type": "input"});
+                } else {
+                    outJson.layers.push({   "out_depth": this.layer_defs[0].depth,
+                                            "layer_type": "input"});
+                }
+            } else {
+                let lastHasBias = (this.layer_defs[n-1].hasBias !== undefined && this.layer_defs[n-1].hasBias !== null) ? this.layer_defs[n-1].hasBias : 0.0;
 
-            outJson.layers.push({   "out_depth": this.layer_defs[n].num_neurons,
-                                    "layer_type": ((n === this.layer_defs.length-1) ? "regression" : "fc"),
-                                    "num_inputs": lastLayerDepthU,
-                                    "l1_decay_mul": 0,
-                                    "l2_decay_mul": 1,
-                                    "filters": []});
-            let lastL = outJson.layers[outJson.layers.length-1];
+                outJson.layers.push({   "out_depth": ((this.layer_defs[n].type === "classification") ? this.layer_defs[n].num_classes : this.layer_defs[n].num_neurons),
+                                        "layer_type": this.layer_defs[n].type,
+                                        "filters": []});
+                let lastL = outJson.layers[outJson.layers.length-1];
 
-            // filters minus bias
-            for(let p=currStartN; p < (currStartN+currLayerDepthU); p++) {
-                lastL.filters.push({
-                    "depth": lastLayerDepthU,
-                    "w": {},
-                    "activation": "relu"});
+                // filters minus bias
+                for(let p=0; p < (this.layer_defs[n].neurons.length-currHasBias); p++) {
+                    lastL.filters.push({
+                        "depth": (this.layer_defs[n-1].neurons.length-lastHasBias),
+                        "w": {},
+                        "activation": "relu"});
 
-                let c_w = 0;
-                for(let c=(currStartN-lastLayerDepth); c < ( (currStartN-lastLayerDepth) +(lastLayerDepthU)); c++) {
-                    let pixelChild = this.getPixelChild(p, c)*4;
-                    lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[pixelChild+2]; // c+" "+p
-                    c_w++;
+                    let c_w = 0;
+                    for(let c=0; c < (this.layer_defs[n-1].neurons.length-lastHasBias); c++) {
+                        let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_1"];
+
+                        let pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId)*4;
+                        lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[pixelChild+2]; // c+" "+p
+                        c_w++;
+                    }
+                }
+
+                // bias
+                if(this.layer_defs[n-1].hasBias === 1.0) {
+                    lastL.biases = {
+                        "depth": (this.layer_defs[n].neurons.length-currHasBias),
+                        "w": {}};
+                    let c = (this.layer_defs[n-1].neurons.length-1);
+                    let c_w = 0;
+                    for(let p=0; p < (this.layer_defs[n].neurons.length-currHasBias); p++) {
+                        let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_1"];
+
+                        let pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId)*4;
+                        lastL.biases.w[c_w] = adjMA[pixelChild+2]; // c+" "+p
+                        c_w++;
+                    }
                 }
             }
-
-            // bias
-            if(this.layer_defs[n-1].hasBias === 1.0) {
-                lastL.biases = {
-                    "depth": this.layer_defs[n].num_neurons,
-                    "w": {}};
-                let c = (currStartN-1.0);
-                let c_w = 0;
-                for(let p=currStartN; p < (currStartN+currLayerDepthU); p++) {
-                    let pixelChild = this.getPixelChild(p, c)*4;
-                    lastL.biases.w[c_w] = adjMA[pixelChild+2]; // c+" "+p
-                    c_w++;
-                }
-            }
-
-            currStartN += currLayerDepth;
         }
 
         let str = JSON.stringify(outJson);
@@ -1337,18 +1331,22 @@ export class Graph {
             }
 
             // softmax
-            /*for(let n=0; n < this.maxacts.length; n++) {
-                let sm = 0.0;
-                for(let nb=0; nb < this.efferentNodesCount; nb++)
-                    sm += Math.exp(this.maxacts[n].values[nb]);
+            if(this.layer_defs[this.layer_defs.length-1].type === "classification") {
+                for(let n=0; n < this.maxacts.length; n++) {
+                    let sm = 0.0;
+                    for(let nb=0; nb < this.efferentNodesCount; nb++)
+                        sm += Math.exp(this.maxacts[n].values[nb]);
 
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    this.maxacts[n].sm[nb] = Math.exp(this.maxacts[n].values[nb])/sm;
+                    for(let nb=0; nb < this.efferentNodesCount; nb++) {
+                        this.maxacts[n].sm[nb] = Math.exp(this.maxacts[n].values[nb])/sm;
 
-                    if(nb === this.maxacts[n].action)
-                        this.maxacts[n].value = this.maxacts[n].sm[nb];
+                        if(nb === this.maxacts[n].action) {
+                            this.maxacts[n].value = this.maxacts[n].sm[nb];
+                            break;
+                        }
+                    }
                 }
-            }*/
+            }
             //}
         }
         if(this.onAction !== null)

@@ -33,8 +33,14 @@
         <div style="width:20%;display:inline-block">
             <div id="SCEJS"></div>
             <div id='elem_bgColor'></div>
+            <button id="BTNID_FROMJSON" style="display:inline-block;">Load model from Textarea</button>
         </div>
 		<script>
+            document.getElementById("BTNID_FROMJSON").addEventListener("click", function () {
+                alert("conv layer exports still not ready");
+                //gbrain.fromJson(JSON.parse(document.getElementById("trainedModel").value));
+            });
+
 		    var w = 512;
 		    var h = 512;
             var inputW = 8;
@@ -65,7 +71,7 @@
 
             var mesh = new Mesh().loadBox();
             simpleNode.setMesh(mesh);
-            simpleNode.setImage("../_RESOURCES/white.jpg");
+            simpleNode.setImage("../_RESOURCES/red.jpg");
 
 
 
@@ -103,7 +109,7 @@
                 "epsilon_test_time": 0.05,
                 "start_learn_threshold": 0,
                 "batch_repeats": 1, // 1*7 (1batch_repeats=7gpu training sets)
-                "learning_rate": 0.1, // 0.001 0.0005
+                "learning_rate": 0.3, // 0.001 0.0005
                 "layer_defs": layer_defs});
 
             //gbrain.stopLearning();
@@ -120,16 +126,6 @@
                     simpleCamera.comp_transformTarget.setPositionTarget($V3([0.0, 0.0, 0.0]));
                     simpleCamera.comp_transformTarget.setPositionGoal($V3([0.0, 0.0, 0.0]).add($V3([0.0, 0.0, 10.0])));
                 }
-
-                let npos = simpleNode.node.getComponent(Constants.COMPONENT_TYPES.TRANSFORM).getPosition();
-                let cpos = simpleCamera.comp_transformTarget.getPositionGoal();
-                let dif = npos.distance(cpos);
-                if(dif < 3)
-                    simpleNode.setImage("../_RESOURCES/red.jpg");
-                else
-                    simpleNode.setImage("../_RESOURCES/white.jpg");
-
-
 
                 project.getActiveStage().tick();
 
@@ -188,5 +184,8 @@
             };
             render();
 		</script>
+        <textarea id="trainedModel">
+
+</textarea>
 	</body>
 </html>

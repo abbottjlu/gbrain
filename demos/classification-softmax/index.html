@@ -64,7 +64,7 @@
             layer_defs.push({"type": "conv", "activation": "relu"});
             layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
             layer_defs.push({"type": "fc", "num_neurons": 15, "activation": "relu"});
-            layer_defs.push({"type": "regression", "num_neurons": num_actions});
+            layer_defs.push({"type": "regression", "num_classes": num_actions});
 
             var gbrain = new GBrainRL({
                 "num_inputs": num_inputs,
