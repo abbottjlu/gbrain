@@ -2637,13 +2637,13 @@ var Graph = exports.Graph = function () {
                     var position = [pos[0] + (x - numX / 2) * nodSep, pos[1], pos[2] + (y - numY / 2) * nodSep, pos[3]];
 
                     if (isInput !== undefined && isInput !== null && isInput === 1) {
-                        var name = numX === 1 ? "I" + this.currentNeuron.toString() : this.layerCount.toString() + x + "_" + y;
+                        var name = "I " + this.currentNeuron.toString();
                         this.addNeuron(name, position);
                         arr.push(name);
                         this.currentNeuron++;
                         this.afferentNodesCount++;
                     } else {
-                        var _name = "H" + this.currentNeuron.toString();
+                        var _name = "H " + this.currentNeuron.toString();
                         this.addNeuron(_name, position);
                         arr.push(_name);
                         this.currentNeuron++;
@@ -2655,7 +2655,7 @@ var Graph = exports.Graph = function () {
             if (hasBias === 1.0) {
                 var _position = [pos[0], pos[1] - 10.0, pos[2] + (numY + 3 - numY / 2) * nodSep, pos[3]];
 
-                var _name2 = "B" + this.currentNeuron.toString();
+                var _name2 = "B " + this.currentNeuron.toString();
                 this.addNeuron(_name2, _position, hasBias);
                 arr.push(_name2);
                 this.currentNeuron++;
@@ -2676,6 +2676,7 @@ var Graph = exports.Graph = function () {
          * @param {int} [jsonIn.layer_neurons_count]
          * @param {number} [jsonIn.multiplier=1.0]
          * @param {int} jsonIn.layerNum
+         * @param {int} [jsonIn.convId]
          */
         value: function addSinapsis(jsonIn) {
             var _this4 = this;
@@ -2717,7 +2718,8 @@ var Graph = exports.Graph = function () {
                 "activationFunc": _activationFunc,
                 "weight": _weight,
                 "linkMultiplier": _linkMultiplier,
-                "layerNum": jsonIn.layerNum });
+                "layerNum": jsonIn.layerNum,
+                "convId": jsonIn.convId });
         }
     }, {
         key: "connectNeuronWithNeuronLayer",
@@ -2779,19 +2781,24 @@ var Graph = exports.Graph = function () {
          * @param {int} [jsonIn.layer_neurons_count]
          * @param {int} jsonIn.layerNum
          * @param {int} jsonIn.hasBias
+         * @param {int} jsonIn.makeBias
          */
         value: function connectNeuronLayerWithNeuronLayer(jsonIn) {
             var we = jsonIn.weights;
 
             for (var n = 0; n < jsonIn.neuronLayerOrigin.length; n++) {
-                var neuronOrigin = jsonIn.neuronLayerOrigin[n];
-                this.connectNeuronWithNeuronLayer({ "neuron": neuronOrigin.toString(),
-                    "neuronLayer": jsonIn.neuronLayerTarget,
-                    "layerNum": jsonIn.layerNum,
-                    "hasBias": jsonIn.hasBias,
-                    "weight": jsonIn.weights !== undefined && jsonIn.weights !== null ? we.slice(0, jsonIn.neuronLayerTarget.length - jsonIn.hasBias) : null,
-                    "layer_neurons_count": jsonIn.layer_neurons_count });
+                var make = false;
+                if (jsonIn.makeBias === 1 && n === jsonIn.neuronLayerOrigin.length - 1) make = true;else if (jsonIn.makeBias === 0 && n !== jsonIn.neuronLayerOrigin.length - 1) make = true;
 
+                if (make === true) {
+                    var neuronOrigin = jsonIn.neuronLayerOrigin[n];
+                    this.connectNeuronWithNeuronLayer({ "neuron": neuronOrigin.toString(),
+                        "neuronLayer": jsonIn.neuronLayerTarget,
+                        "layerNum": jsonIn.layerNum,
+                        "hasBias": jsonIn.hasBias,
+                        "weight": jsonIn.weights !== undefined && jsonIn.weights !== null ? we.slice(0, jsonIn.neuronLayerTarget.length - jsonIn.hasBias) : null,
+                        "layer_neurons_count": jsonIn.layer_neurons_count });
+                }
                 if (jsonIn.weights !== undefined && jsonIn.weights !== null) we = we.slice(jsonIn.neuronLayerTarget.length - jsonIn.hasBias);
             }
         }
@@ -2809,6 +2816,7 @@ var Graph = exports.Graph = function () {
          * @param {number} [jsonIn.multiplier=1.0]
          * @param {int} jsonIn.layerNum
          * @param {int} jsonIn.hasBias
+         * @param {int} jsonIn.makeBias
          * @param {int} jsonIn.convMatrixId
          */
         value: function connectConvXYNeuronsFromXYNeurons(jsonIn) {
@@ -2828,7 +2836,6 @@ var Graph = exports.Graph = function () {
 
             var idds = [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
 
-            var arr = [];
             var xT = 0;
             var yT = 0;
             var xO = 1;
@@ -2853,16 +2860,19 @@ var Graph = exports.Graph = function () {
 
                     var idO = yOf * (jsonIn.w + 2) + xOf;
 
-                    this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
-                        "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
-                        "activationFunc": jsonIn.activationFunc,
-                        "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n] : jsonIn.weight,
-                        "layer_neurons_count": jsonIn.layer_neurons_count,
-                        "multiplier": convMatrix[jsonIn.convMatrixId][nb] + 0.0001,
-                        "layerNum": jsonIn.layerNum });
+                    if (jsonIn.makeBias === 0) {
+                        this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
+                            "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                            "activationFunc": jsonIn.activationFunc,
+                            "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n] : jsonIn.weight,
+                            "layer_neurons_count": jsonIn.layer_neurons_count,
+                            "multiplier": convMatrix[jsonIn.convMatrixId][nb] + 0.0001,
+                            "layerNum": jsonIn.layerNum,
+                            "convId": nb });
+                    }
                     idConvM++;
                 }
-                if (jsonIn.hasBias === 1.0) {
+                if (jsonIn.makeBias === 1) {
                     this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length - 1].toString(),
                         "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                         "activationFunc": jsonIn.activationFunc,
@@ -2872,8 +2882,6 @@ var Graph = exports.Graph = function () {
                         "layerNum": jsonIn.layerNum });
                 }
             }
-
-            return arr;
         }
     }, {
         key: "toJson",
@@ -2915,13 +2923,26 @@ var Graph = exports.Graph = function () {
                             "w": {},
                             "activation": "relu" });
 
-                        var c_w = 0;
-                        for (var c = 0; c < this.layer_defs[n - 1].neurons.length - lastHasBias; c++) {
-                            var link = this._links[this.layer_defs[n - 1].neurons[c] + "->" + this.layer_defs[n].neurons[p] + "_1"];
+                        if (this.layer_defs[n].type === "fc" || this.layer_defs[n].type === "regression" || this.layer_defs[n].type === "classification") {
+                            var c_w = 0;
+                            for (var c = 0; c < this.layer_defs[n - 1].neurons.length - lastHasBias; c++) {
+                                var link = this._links[this.layer_defs[n - 1].neurons[c] + "->" + this.layer_defs[n].neurons[p] + "_0"];
 
-                            var pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId) * 4;
-                            lastL.filters[lastL.filters.length - 1].w[c_w] = adjMA[pixelChild + 2]; // c+" "+p
-                            c_w++;
+                                var pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId) * 4;
+                                lastL.filters[lastL.filters.length - 1].w[c_w] = adjMA[pixelChild + 2]; // c+" "+p
+                                c_w++;
+                            }
+                        } else if (this.layer_defs[n].type === "conv") {
+                            var convs = [];
+                            for (var key in this._links) {
+                                if (this._links[key].target === this.layer_defs[n].neurons[p]) convs[this._links[key].convId] = this.getPixelChild(this._links[key].target_nodeId, this._links[key].origin_nodeId) * 4;
+                            }
+
+                            var _c_w = 0;
+                            for (var nb = 0; nb < convs.length; nb++) {
+                                lastL.filters[lastL.filters.length - 1].w[_c_w] = adjMA[convs[nb] + 2]; // c+" "+p
+                                _c_w++;
+                            }
                         }
                     }
 
@@ -2931,13 +2952,13 @@ var Graph = exports.Graph = function () {
                             "depth": this.layer_defs[n].neurons.length - currHasBias,
                             "w": {} };
                         var _c = this.layer_defs[n - 1].neurons.length - 1;
-                        var _c_w = 0;
+                        var _c_w2 = 0;
                         for (var _p = 0; _p < this.layer_defs[n].neurons.length - currHasBias; _p++) {
-                            var _link = this._links[this.layer_defs[n - 1].neurons[_c] + "->" + this.layer_defs[n].neurons[_p] + "_1"];
+                            var _link = this._links[this.layer_defs[n - 1].neurons[_c] + "->" + this.layer_defs[n].neurons[_p] + "_0"];
 
                             var _pixelChild = this.getPixelChild(_link.target_nodeId, _link.origin_nodeId) * 4;
-                            lastL.biases.w[_c_w] = adjMA[_pixelChild + 2]; // c+" "+p
-                            _c_w++;
+                            lastL.biases.w[_c_w2] = adjMA[_pixelChild + 2]; // c+" "+p
+                            _c_w2++;
                         }
                     }
                 }
@@ -3742,7 +3763,7 @@ var Graph = exports.Graph = function () {
          * @param {int} [jsonIn.target_itemStart]
          * @param {Array<>} [jsonIn.origin_layoutNodeArgumentData]
          * @param {Array<>} [jsonIn.target_layoutNodeArgumentData]
-         * @param {int} [jsonIn.repeatId]
+         * @param {int} [jsonIn.convId]
          */
         value: function addLink(jsonIn) {
             var pass = true;
@@ -3780,14 +3801,7 @@ var Graph = exports.Graph = function () {
                 } else jsonIn.weight = Math.random();
                 jsonIn.linkMultiplier = jsonIn.linkMultiplier !== undefined && jsonIn.linkMultiplier !== null ? jsonIn.linkMultiplier : 1.0;
 
-                var repeatId = 1;
-                while (true) {
-                    var exists = this._links.hasOwnProperty(jsonIn.origin + "->" + jsonIn.target + "_" + repeatId) || this._links.hasOwnProperty(jsonIn.target + "->" + jsonIn.origin + "_" + repeatId);
-                    if (exists === true) {
-                        repeatId++;
-                    } else break;
-                }
-                jsonIn.repeatId = repeatId;
+                jsonIn.convId = jsonIn.convId !== undefined && jsonIn.convId !== null ? jsonIn.convId : 0.0;
 
                 jsonIn = this.createLink(jsonIn);
 
@@ -3796,7 +3810,7 @@ var Graph = exports.Graph = function () {
                 }
 
                 // ADD LINK TO ARRAY LINKS
-                this._links[jsonIn.origin + "->" + jsonIn.target + "_" + repeatId] = jsonIn;
+                this._links[jsonIn.origin + "->" + jsonIn.target + "_" + jsonIn.convId] = jsonIn;
             }
         }
     }, {
@@ -3823,7 +3837,7 @@ var Graph = exports.Graph = function () {
             if (this.currentLinkId % 60000 === 0) this.createLinksObjItem();
 
             for (var n = 0; n < this.lineVertexCount * 2; n++) {
-                this.linksObj[this.currentLinksObjItem].arrayLinkData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, Math.ceil(n / 2), jsonIn.repeatId);
+                this.linksObj[this.currentLinksObjItem].arrayLinkData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, Math.ceil(n / 2), jsonIn.convId);
 
                 if (Math.ceil(n / 2) !== this.lineVertexCount - 1) {
                     this.linksObj[this.currentLinksObjItem].arrayLinkNodeName.push(jsonIn.origin_nodeName);
@@ -3889,7 +3903,7 @@ var Graph = exports.Graph = function () {
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex + 1], this.mesh_arrows.normalArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex + 1], this.mesh_arrows.textureArray[idxVertex + 2], 1.0);
                     if (_o === 0) {
-                        this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.repeatId);
+                        this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.convId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                         if (jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
                             for (var argNameKey in this._customArgs) {
@@ -3903,7 +3917,7 @@ var Graph = exports.Graph = function () {
                             }
                         }
                     } else {
-                        this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.target_nodeId, jsonIn.origin_nodeId, 1.0, jsonIn.repeatId);
+                        this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.target_nodeId, jsonIn.origin_nodeId, 1.0, jsonIn.convId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.target_nodeName);
                         if (jsonIn.target_layoutNodeArgumentData !== undefined && jsonIn.target_layoutNodeArgumentData !== null) {
                             for (var _argNameKey in this._customArgs) {
@@ -5567,36 +5581,33 @@ var GBrain = exports.GBrain = function () {
         value: function makeLayers(layer_defs) {
             var _this = this;
 
-            var ml = function ml(w, h, isInput, type, posZ) {
-                _this.graph.layer_defs[_this.graph.layerCount].hasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "classification" ? 1.0 : 0.0;
+            var mLayer = function mLayer(jsonIn) {
+                if (jsonIn.bias !== undefined && jsonIn.bias !== null && jsonIn.bias === 1) {
+                    _this.graph.layer_defs[_this.graph.layerCount].hasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "classification" ? 1.0 : 0.0;
+                } else _this.graph.layer_defs[_this.graph.layerCount].hasBias = 0.0;
 
-                if (type === "conv") {
-                    w -= 2;
-                    h -= 2;
-                    _this.graph.layer_defs[_this.graph.layerCount].out_sx = w;
-                    _this.graph.layer_defs[_this.graph.layerCount].out_sy = h;
-                }
-
-                return _this.graph.createNeuronLayer(w, h, [_this.offsetX, 0.0, posZ, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, isInput);
+                return _this.graph.createNeuronLayer(jsonIn.w, jsonIn.h, [_this.offsetX, 0.0, jsonIn.posZ, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, jsonIn.isInput);
             };
 
-            var mr = function mr(w, originLayer, targetLayer, weights, type, layerNum, hasBias, layer_neurons_count, convMatrixId) {
-                if (type === "fc") {
-                    _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": originLayer,
-                        "neuronLayerTarget": targetLayer,
-                        "weights": weights !== undefined && weights !== null ? weights : null,
-                        "layer_neurons_count": layer_neurons_count,
-                        "layerNum": layerNum,
-                        "hasBias": hasBias }); // TODO l.activation
-                } else if (type === "conv") {
-                    _this.graph.connectConvXYNeuronsFromXYNeurons({ "w": w,
-                        "neuronLayerOrigin": originLayer,
-                        "neuronLayerTarget": targetLayer,
-                        "weights": weights !== undefined && weights !== null ? weights : null,
-                        "layer_neurons_count": layer_neurons_count,
-                        "layerNum": layerNum,
-                        "hasBias": hasBias,
-                        "convMatrixId": convMatrixId });
+            var mRelations = function mRelations(jsonIn) {
+                if (jsonIn.type === "fc") {
+                    _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": jsonIn.originLayer,
+                        "neuronLayerTarget": jsonIn.targetLayer,
+                        "weights": jsonIn.weights !== undefined && jsonIn.weights !== null ? jsonIn.weights : null,
+                        "layer_neurons_count": jsonIn.layer_neurons_count,
+                        "layerNum": jsonIn.layerNum,
+                        "hasBias": jsonIn.hasBias,
+                        "makeBias": jsonIn.makeBias }); // TODO l.activation
+                } else if (jsonIn.type === "conv") {
+                    _this.graph.connectConvXYNeuronsFromXYNeurons({ "w": jsonIn.w,
+                        "neuronLayerOrigin": jsonIn.originLayer,
+                        "neuronLayerTarget": jsonIn.targetLayer,
+                        "weights": jsonIn.weights !== undefined && jsonIn.weights !== null ? jsonIn.weights : null,
+                        "layer_neurons_count": jsonIn.layer_neurons_count,
+                        "layerNum": jsonIn.layerNum,
+                        "hasBias": jsonIn.hasBias,
+                        "makeBias": jsonIn.makeBias,
+                        "convMatrixId": jsonIn.convMatrixId });
                 }
             };
 
@@ -5613,11 +5624,11 @@ var GBrain = exports.GBrain = function () {
                 }
                 var arr = [];
                 for (var _n = 0; _n < h; _n++) {
-                    var name = "O" + _this.outputCount;
+                    var name = "O " + _this.outputCount;
                     arr.push(name);
                     _this.graph.addEfferentNeuron(name, [_this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
                     _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": originLayer,
-                        "neuron": "O" + _this.outputCount,
+                        "neuron": "O " + _this.outputCount,
                         "weight": weights !== undefined && weights !== null ? newWe.slice(0, originLayer.length) : null,
                         "layer_neurons_count": originLayer.length,
                         "layerNum": _this.graph.layerCount - 1 });
@@ -5634,24 +5645,94 @@ var GBrain = exports.GBrain = function () {
             this.offsetX = 0;
 
             var lType = { "input": function input(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = l.out_sx !== undefined ? ml(l.out_sx, l.out_sy, 1, l.type, 0) : ml(1, l.depth, 1, l.type, 0);
+                    _this.graph.layer_defs[_this.graph.layerCount].neurons = l.out_sx !== undefined ? mLayer({ "w": l.out_sx,
+                        "h": l.out_sy,
+                        "isInput": 1,
+                        "type": l.type,
+                        "posZ": 0,
+                        "bias": 1 }) : mLayer({ "w": 1,
+                        "h": l.depth,
+                        "isInput": 1,
+                        "type": l.type,
+                        "posZ": 0,
+                        "bias": 1 });
 
                     _this.offsetX += l.out_sx !== undefined ? 100 : 30;
                 },
                 "fc": function fc(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = ml(1, l.num_neurons, 0, l.type, 0);
-                    mr(null, _this.graph.layer_defs[_this.graph.layerCount - 1].neurons, _this.graph.layer_defs[_this.graph.layerCount].neurons, l.weights, l.type, _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.graph.layer_defs[_this.graph.layerCount - 1].length);
+                    _this.graph.layer_defs[_this.graph.layerCount].neurons = mLayer({ "w": 1,
+                        "h": l.num_neurons,
+                        "isInput": 0,
+                        "type": l.type,
+                        "posZ": 0,
+                        "bias": 1 });
+
+                    mRelations({ "w": null,
+                        "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
+                        "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                        "weights": l.weights,
+                        "type": l.type,
+                        "layerNum": _this.graph.layerCount - 1,
+                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "makeBias": 0,
+                        "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length });
+                    mRelations({ "w": null,
+                        "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
+                        "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                        "weights": l.weights,
+                        "type": l.type,
+                        "layerNum": _this.graph.layerCount - 1,
+                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "makeBias": 1,
+                        "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length });
 
                     _this.offsetX += 30;
                 },
                 "conv": function conv(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = [];
+                    var displ = [-180, -120, -60, 60, 120, 180];
 
-                    var displ = [180, 120, 60, -60, -120, -180];
+                    if (l.type === "conv") {
+                        _this.graph.layer_defs[_this.graph.layerCount].out_sx = _this.graph.layer_defs[_this.graph.layerCount - 1].out_sx - 2;
+                        _this.graph.layer_defs[_this.graph.layerCount].out_sy = _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy - 2;
+                    }
+                    var wh = _this.graph.layer_defs[_this.graph.layerCount].out_sx * _this.graph.layer_defs[_this.graph.layerCount].out_sy;
+
+                    _this.graph.layer_defs[_this.graph.layerCount].neurons = [];
                     for (var n = 0; n < displ.length; n++) {
-                        var newNeurons = ml(_this.graph.layer_defs[_this.graph.layerCount - 1].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy, 0, l.type, displ[n]);
-                        mr(_this.graph.layer_defs[_this.graph.layerCount].out_sx, _this.graph.layer_defs[_this.graph.layerCount - 1].neurons, newNeurons, l.weights, l.type, _this.graph.layerCount - 1, _this.graph.layer_defs[_this.graph.layerCount].hasBias, _this.graph.layer_defs[_this.graph.layerCount - 1].length, n);
+                        var bias = n === displ.length - 1 ? 1 : 0;
+                        var newNeurons = mLayer({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
+                            "h": _this.graph.layer_defs[_this.graph.layerCount].out_sy,
+                            "isInput": 0,
+                            "type": l.type,
+                            "posZ": displ[n],
+                            "bias": bias });
+
+                        var wN = l.weights !== undefined && l.weights !== null ? l.weights.slice(0, wh * 9) : null;
+
+                        mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
+                            "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
+                            "targetLayer": newNeurons,
+                            "weights": wN,
+                            "type": l.type,
+                            "layerNum": _this.graph.layerCount - 1,
+                            "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                            "makeBias": 0,
+                            "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
+                            "convMatrixId": n });
                         _this.graph.layer_defs[_this.graph.layerCount].neurons = _this.graph.layer_defs[_this.graph.layerCount].neurons.concat(newNeurons);
+
+                        if (_this.graph.layer_defs[_this.graph.layerCount].hasBias === 1 && n === displ.length - 1) mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
+                            "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
+                            "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                            "weights": l.weights,
+                            "type": l.type,
+                            "layerNum": _this.graph.layerCount - 1,
+                            "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                            "makeBias": 1,
+                            "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
+                            "convMatrixId": n });
+
+                        if (l.weights !== undefined && l.weights !== null) l.weights = l.weights.slice(wh * 9);
                     }
 
                     _this.offsetX += 100;

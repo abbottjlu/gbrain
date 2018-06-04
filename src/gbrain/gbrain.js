@@ -61,38 +61,36 @@ export class GBrain {
      * @param {Array<Object>} layer_defs
      */
     makeLayers(layer_defs) {
-        let ml = (w, h, isInput, type, posZ) => {
-            this.graph.layer_defs[this.graph.layerCount].hasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" ||
-                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "regression" ||
-                                                                    this.graph.layer_defs[this.graph.layerCount+1].type === "classification") ? 1.0 : 0.0;
+        let mLayer = (jsonIn) => {
+            if(jsonIn.bias !== undefined && jsonIn.bias !== null && jsonIn.bias === 1) {
+                this.graph.layer_defs[this.graph.layerCount].hasBias = (this.graph.layer_defs[this.graph.layerCount+1].activation === "relu" ||
+                                                                        this.graph.layer_defs[this.graph.layerCount+1].type === "regression" ||
+                                                                        this.graph.layer_defs[this.graph.layerCount+1].type === "classification") ? 1.0 : 0.0;
+            } else
+                this.graph.layer_defs[this.graph.layerCount].hasBias = 0.0;
 
-            if(type === "conv") {
-                w -= 2;
-                h -= 2;
-                this.graph.layer_defs[this.graph.layerCount].out_sx = w;
-                this.graph.layer_defs[this.graph.layerCount].out_sy = h;
-            }
-
-            return this.graph.createNeuronLayer(w, h, [this.offsetX, 0.0, posZ, 1.0], 5.0, this.graph.layer_defs[this.graph.layerCount].hasBias, isInput);
+            return this.graph.createNeuronLayer(jsonIn.w, jsonIn.h, [this.offsetX, 0.0, jsonIn.posZ, 1.0], 5.0, this.graph.layer_defs[this.graph.layerCount].hasBias, jsonIn.isInput);
         };
 
-        let mr = (w, originLayer, targetLayer, weights, type, layerNum, hasBias, layer_neurons_count, convMatrixId) => {
-            if(type === "fc") {
-                this.graph.connectNeuronLayerWithNeuronLayer({  "neuronLayerOrigin": originLayer,
-                                                                "neuronLayerTarget": targetLayer,
-                                                                "weights": ((weights !== undefined && weights !== null) ? weights : null),
-                                                                "layer_neurons_count": layer_neurons_count,
-                                                                "layerNum": layerNum,
-                                                                "hasBias": hasBias}); // TODO l.activation
-            } else if(type === "conv") {
-                this.graph.connectConvXYNeuronsFromXYNeurons({   "w": w,
-                                                                "neuronLayerOrigin": originLayer,
-                                                                "neuronLayerTarget": targetLayer,
-                                                                "weights": ((weights !== undefined && weights !== null) ? weights : null),
-                                                                "layer_neurons_count": layer_neurons_count,
-                                                                "layerNum": layerNum,
-                                                                "hasBias": hasBias,
-                                                                "convMatrixId": convMatrixId});
+        let mRelations = (jsonIn) => {
+            if(jsonIn.type === "fc") {
+                this.graph.connectNeuronLayerWithNeuronLayer({  "neuronLayerOrigin": jsonIn.originLayer,
+                                                                "neuronLayerTarget": jsonIn.targetLayer,
+                                                                "weights": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? jsonIn.weights : null),
+                                                                "layer_neurons_count": jsonIn.layer_neurons_count,
+                                                                "layerNum": jsonIn.layerNum,
+                                                                "hasBias": jsonIn.hasBias,
+                                                                "makeBias": jsonIn.makeBias}); // TODO l.activation
+            } else if(jsonIn.type === "conv") {
+                this.graph.connectConvXYNeuronsFromXYNeurons({  "w": jsonIn.w,
+                                                                "neuronLayerOrigin": jsonIn.originLayer,
+                                                                "neuronLayerTarget": jsonIn.targetLayer,
+                                                                "weights": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? jsonIn.weights : null),
+                                                                "layer_neurons_count": jsonIn.layer_neurons_count,
+                                                                "layerNum": jsonIn.layerNum,
+                                                                "hasBias": jsonIn.hasBias,
+                                                                "makeBias": jsonIn.makeBias,
+                                                                "convMatrixId": jsonIn.convMatrixId});
             }
         };
 
@@ -108,11 +106,11 @@ export class GBrain {
             }
             let arr = [];
             for(let n=0; n < h; n++) {
-                let name = "O"+this.outputCount;
+                let name = "O "+this.outputCount;
                 arr.push(name);
                 this.graph.addEfferentNeuron(name, [this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
                 this.graph.connectNeuronLayerWithNeuron({   "neuronLayer": originLayer,
-                                                            "neuron": "O"+this.outputCount,
+                                                            "neuron": "O "+this.outputCount,
                                                             "weight": ((weights !== undefined && weights !== null) ? newWe.slice(0, originLayer.length) : null),
                                                             "layer_neurons_count": originLayer.length,
                                                             "layerNum": this.graph.layerCount-1});
@@ -132,25 +130,97 @@ export class GBrain {
 
         let lType = {   "input": (l) => {
                             this.graph.layer_defs[this.graph.layerCount].neurons = (l.out_sx !== undefined)
-                                                                                        ? ml(l.out_sx, l.out_sy, 1, l.type, 0)
-                                                                                        : ml(1, l.depth, 1, l.type, 0);
+                                                                                        ? mLayer({  "w": l.out_sx,
+                                                                                                    "h": l.out_sy,
+                                                                                                    "isInput": 1,
+                                                                                                    "type": l.type,
+                                                                                                    "posZ": 0,
+                                                                                                    "bias": 1})
+                                                                                        : mLayer({  "w": 1,
+                                                                                                    "h": l.depth,
+                                                                                                    "isInput": 1,
+                                                                                                    "type": l.type,
+                                                                                                    "posZ": 0,
+                                                                                                    "bias": 1});
 
                             this.offsetX += ((l.out_sx !== undefined) ? 100 : 30);
                         },
                         "fc": (l) => {
-                            this.graph.layer_defs[this.graph.layerCount].neurons = ml(1, l.num_neurons, 0, l.type, 0);
-                            mr(null, this.graph.layer_defs[this.graph.layerCount-1].neurons, this.graph.layer_defs[this.graph.layerCount].neurons, l.weights, l.type, this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.graph.layer_defs[this.graph.layerCount-1].length);
+                            this.graph.layer_defs[this.graph.layerCount].neurons = mLayer({ "w": 1,
+                                                                                            "h": l.num_neurons,
+                                                                                            "isInput": 0,
+                                                                                            "type": l.type,
+                                                                                            "posZ": 0,
+                                                                                            "bias": 1});
+
+                            mRelations({"w": null,
+                                        "originLayer": this.graph.layer_defs[this.graph.layerCount-1].neurons,
+                                        "targetLayer": this.graph.layer_defs[this.graph.layerCount].neurons,
+                                        "weights": l.weights,
+                                        "type": l.type,
+                                        "layerNum": this.graph.layerCount-1,
+                                        "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias,
+                                        "makeBias": 0,
+                                        "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length});
+                            mRelations({"w": null,
+                                        "originLayer": this.graph.layer_defs[this.graph.layerCount-1].neurons,
+                                        "targetLayer": this.graph.layer_defs[this.graph.layerCount].neurons,
+                                        "weights": l.weights,
+                                        "type": l.type,
+                                        "layerNum": this.graph.layerCount-1,
+                                        "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias,
+                                        "makeBias": 1,
+                                        "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length});
 
                             this.offsetX += 30;
                         },
                         "conv": (l) => {
-                            this.graph.layer_defs[this.graph.layerCount].neurons = [];
+                            let displ = [-180,-120,-60,60,120,180];
 
-                            let displ = [180,120,60,-60,-120,-180];
+                            if(l.type === "conv") {
+                                this.graph.layer_defs[this.graph.layerCount].out_sx = this.graph.layer_defs[this.graph.layerCount-1].out_sx-2;
+                                this.graph.layer_defs[this.graph.layerCount].out_sy = this.graph.layer_defs[this.graph.layerCount-1].out_sy-2;
+                            }
+                            let wh = this.graph.layer_defs[this.graph.layerCount].out_sx*this.graph.layer_defs[this.graph.layerCount].out_sy;
+
+                            this.graph.layer_defs[this.graph.layerCount].neurons = [];
                             for(let n=0; n < displ.length; n++) {
-                                let newNeurons = ml(this.graph.layer_defs[this.graph.layerCount-1].out_sx, this.graph.layer_defs[this.graph.layerCount-1].out_sy, 0, l.type, displ[n]);
-                                mr(this.graph.layer_defs[this.graph.layerCount].out_sx, this.graph.layer_defs[this.graph.layerCount-1].neurons, newNeurons, l.weights, l.type, this.graph.layerCount-1, this.graph.layer_defs[this.graph.layerCount].hasBias, this.graph.layer_defs[this.graph.layerCount-1].length, n);
+                                let bias = (n === displ.length-1) ? 1 : 0;
+                                let newNeurons = mLayer({   "w": this.graph.layer_defs[this.graph.layerCount].out_sx,
+                                                            "h": this.graph.layer_defs[this.graph.layerCount].out_sy,
+                                                            "isInput": 0,
+                                                            "type": l.type,
+                                                            "posZ": displ[n],
+                                                            "bias": bias});
+
+                                let wN = (l.weights !== undefined && l.weights !== null) ? l.weights.slice(0, wh*9) : null;
+
+                                mRelations({"w": this.graph.layer_defs[this.graph.layerCount].out_sx,
+                                            "originLayer": this.graph.layer_defs[this.graph.layerCount-1].neurons,
+                                            "targetLayer": newNeurons,
+                                            "weights": wN,
+                                            "type": l.type,
+                                            "layerNum": this.graph.layerCount-1,
+                                            "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias,
+                                            "makeBias": 0,
+                                            "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length,
+                                            "convMatrixId": n});
                                 this.graph.layer_defs[this.graph.layerCount].neurons = this.graph.layer_defs[this.graph.layerCount].neurons.concat(newNeurons);
+
+                                if(this.graph.layer_defs[this.graph.layerCount].hasBias ===1 && n === displ.length-1)
+                                    mRelations({"w": this.graph.layer_defs[this.graph.layerCount].out_sx,
+                                                "originLayer": this.graph.layer_defs[this.graph.layerCount-1].neurons,
+                                                "targetLayer": this.graph.layer_defs[this.graph.layerCount].neurons,
+                                                "weights": l.weights,
+                                                "type": l.type,
+                                                "layerNum": this.graph.layerCount-1,
+                                                "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias,
+                                                "makeBias": 1,
+                                                "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length,
+                                                "convMatrixId": n});
+
+                                if(l.weights !== undefined && l.weights !== null)
+                                    l.weights = l.weights.slice(wh*9);
                             }
 
                             this.offsetX += 100;

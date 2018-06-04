@@ -928,13 +928,13 @@ export class Graph {
                 let position = [pos[0]+((x-(numX/2))*nodSep), pos[1], pos[2]+((y-(numY/2))*nodSep), pos[3]];
 
                 if(isInput !== undefined && isInput !== null && isInput === 1) {
-                    let name = (numX === 1) ? "I"+this.currentNeuron.toString() : this.layerCount.toString()+x+"_"+y;
+                    let name = "I "+this.currentNeuron.toString();
                     this.addNeuron(name, position);
                     arr.push(name);
                     this.currentNeuron++;
                     this.afferentNodesCount++;
                 } else {
-                    let name = "H"+this.currentNeuron.toString();
+                    let name = "H "+this.currentNeuron.toString();
                     this.addNeuron(name, position);
                     arr.push(name);
                     this.currentNeuron++;
@@ -946,7 +946,7 @@ export class Graph {
         if(hasBias === 1.0) {
             let position = [pos[0], pos[1]-10.0, pos[2]+(((numY+3)-(numY/2))*nodSep), pos[3]];
 
-            let name = "B"+this.currentNeuron.toString();
+            let name = "B "+this.currentNeuron.toString();
             this.addNeuron(name, position, hasBias);
             arr.push(name);
             this.currentNeuron++;
@@ -964,6 +964,7 @@ export class Graph {
      * @param {int} [jsonIn.layer_neurons_count]
      * @param {number} [jsonIn.multiplier=1.0]
      * @param {int} jsonIn.layerNum
+     * @param {int} [jsonIn.convId]
      */
     addSinapsis(jsonIn) {
         let gaussRandom = () => {
@@ -1003,7 +1004,8 @@ export class Graph {
             "activationFunc": _activationFunc,
             "weight": _weight,
             "linkMultiplier": _linkMultiplier,
-            "layerNum": jsonIn.layerNum});
+            "layerNum": jsonIn.layerNum,
+            "convId": jsonIn.convId});
     };
 
     /**
@@ -1054,19 +1056,29 @@ export class Graph {
      * @param {int} [jsonIn.layer_neurons_count]
      * @param {int} jsonIn.layerNum
      * @param {int} jsonIn.hasBias
+     * @param {int} jsonIn.makeBias
      */
     connectNeuronLayerWithNeuronLayer(jsonIn) {
         let we = jsonIn.weights;
 
         for(let n=0; n < jsonIn.neuronLayerOrigin.length; n++) {
-            let neuronOrigin = jsonIn.neuronLayerOrigin[n];
-            this.connectNeuronWithNeuronLayer({ "neuron": neuronOrigin.toString(),
-                                                "neuronLayer": jsonIn.neuronLayerTarget,
-                                                "layerNum": jsonIn.layerNum,
-                                                "hasBias": jsonIn.hasBias,
-                                                "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? we.slice(0, jsonIn.neuronLayerTarget.length-jsonIn.hasBias) : null),
-                                                "layer_neurons_count": jsonIn.layer_neurons_count});
+            let make = false;
+            if(jsonIn.makeBias === 1 && n === (jsonIn.neuronLayerOrigin.length-1))
+                make = true;
+            else if(jsonIn.makeBias === 0 && n !== (jsonIn.neuronLayerOrigin.length-1))
+                make = true;
 
+            if(make ===  true) {
+                let neuronOrigin = jsonIn.neuronLayerOrigin[n];
+                this.connectNeuronWithNeuronLayer({ "neuron": neuronOrigin.toString(),
+                                                    "neuronLayer": jsonIn.neuronLayerTarget,
+                                                    "layerNum": jsonIn.layerNum,
+                                                    "hasBias": jsonIn.hasBias,
+                                                    "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null) ? we.slice(0, jsonIn.neuronLayerTarget.length-jsonIn.hasBias) : null),
+                                                    "layer_neurons_count": jsonIn.layer_neurons_count});
+
+
+            }
             if(jsonIn.weights !== undefined && jsonIn.weights !== null)
                 we = we.slice(jsonIn.neuronLayerTarget.length-jsonIn.hasBias);
         }
@@ -1082,6 +1094,7 @@ export class Graph {
      * @param {number} [jsonIn.multiplier=1.0]
      * @param {int} jsonIn.layerNum
      * @param {int} jsonIn.hasBias
+     * @param {int} jsonIn.makeBias
      * @param {int} jsonIn.convMatrixId
      */
     connectConvXYNeuronsFromXYNeurons(jsonIn) {
@@ -1121,7 +1134,6 @@ export class Graph {
                     {x:0,  y:1},
                     {x:1,  y:1}];
 
-        let arr = [];
         let xT = 0;
         let yT = 0;
         let xO = 1;
@@ -1146,16 +1158,19 @@ export class Graph {
 
                 let idO = (yOf*(jsonIn.w+2))+xOf;
 
-                this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
-                                    "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
-                                    "activationFunc": jsonIn.activationFunc,
-                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
-                                    "layer_neurons_count": jsonIn.layer_neurons_count,
-                                    "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
-                                    "layerNum": jsonIn.layerNum});
+                if(jsonIn.makeBias === 0) {
+                    this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
+                                        "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
+                                        "activationFunc": jsonIn.activationFunc,
+                                        "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                        "layer_neurons_count": jsonIn.layer_neurons_count,
+                                        "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
+                                        "layerNum": jsonIn.layerNum,
+                                        "convId": nb});
+                }
                 idConvM++;
             }
-            if(jsonIn.hasBias === 1.0) {
+            if(jsonIn.makeBias === 1) {
                 this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length-1].toString(),
                                     "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                                     "activationFunc": jsonIn.activationFunc,
@@ -1165,8 +1180,6 @@ export class Graph {
                                     "layerNum": jsonIn.layerNum});
             }
         }
-
-        return arr;
     };
 
     /**
@@ -1205,13 +1218,27 @@ export class Graph {
                         "w": {},
                         "activation": "relu"});
 
-                    let c_w = 0;
-                    for(let c=0; c < (this.layer_defs[n-1].neurons.length-lastHasBias); c++) {
-                        let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_1"];
+                    if(this.layer_defs[n].type === "fc" || this.layer_defs[n].type === "regression" || this.layer_defs[n].type === "classification") {
+                        let c_w = 0;
+                        for(let c=0; c < (this.layer_defs[n-1].neurons.length-lastHasBias); c++) {
+                            let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_0"];
 
-                        let pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId)*4;
-                        lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[pixelChild+2]; // c+" "+p
-                        c_w++;
+                            let pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId)*4;
+                            lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[pixelChild+2]; // c+" "+p
+                            c_w++;
+                        }
+                    } else if(this.layer_defs[n].type === "conv") {
+                        let convs = [];
+                        for(let key in this._links) {
+                            if(this._links[key].target === this.layer_defs[n].neurons[p])
+                                convs[this._links[key].convId] = this.getPixelChild(this._links[key].target_nodeId, this._links[key].origin_nodeId)*4;
+                        }
+
+                        let c_w = 0;
+                        for(let nb=0; nb < convs.length; nb++) {
+                            lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[convs[nb]+2]; // c+" "+p
+                            c_w++;
+                        }
                     }
                 }
 
@@ -1223,7 +1250,7 @@ export class Graph {
                     let c = (this.layer_defs[n-1].neurons.length-1);
                     let c_w = 0;
                     for(let p=0; p < (this.layer_defs[n].neurons.length-currHasBias); p++) {
-                        let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_1"];
+                        let link = this._links[this.layer_defs[n-1].neurons[c]+"->"+this.layer_defs[n].neurons[p]+"_0"];
 
                         let pixelChild = this.getPixelChild(link.target_nodeId, link.origin_nodeId)*4;
                         lastL.biases.w[c_w] = adjMA[pixelChild+2]; // c+" "+p
@@ -2014,7 +2041,7 @@ export class Graph {
      * @param {int} [jsonIn.target_itemStart]
      * @param {Array<>} [jsonIn.origin_layoutNodeArgumentData]
      * @param {Array<>} [jsonIn.target_layoutNodeArgumentData]
-     * @param {int} [jsonIn.repeatId]
+     * @param {int} [jsonIn.convId]
      */
     addLink(jsonIn) {
         let pass = true;
@@ -2054,15 +2081,7 @@ export class Graph {
                 jsonIn.weight = Math.random();
             jsonIn.linkMultiplier = (jsonIn.linkMultiplier !== undefined && jsonIn.linkMultiplier !== null) ? jsonIn.linkMultiplier : 1.0;
 
-            let repeatId = 1;
-            while(true) {
-                let exists = this._links.hasOwnProperty(jsonIn.origin+"->"+jsonIn.target+"_"+repeatId) || this._links.hasOwnProperty(jsonIn.target+"->"+jsonIn.origin+"_"+repeatId);
-                if(exists === true) {
-                    repeatId++;
-                } else
-                    break;
-            }
-            jsonIn.repeatId = repeatId;
+            jsonIn.convId = (jsonIn.convId !== undefined && jsonIn.convId !== null) ? jsonIn.convId : 0.0;
 
             jsonIn = this.createLink(jsonIn);
 
@@ -2073,7 +2092,7 @@ export class Graph {
             }
 
             // ADD LINK TO ARRAY LINKS
-            this._links[jsonIn.origin+"->"+jsonIn.target+"_"+repeatId] = jsonIn;
+            this._links[jsonIn.origin+"->"+jsonIn.target+"_"+jsonIn.convId] = jsonIn;
         }
     };
 
@@ -2098,7 +2117,7 @@ export class Graph {
             this.createLinksObjItem();
 
         for(let n=0; n < this.lineVertexCount*2; n++) {
-            this.linksObj[this.currentLinksObjItem].arrayLinkData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, Math.ceil(n/2), jsonIn.repeatId);
+            this.linksObj[this.currentLinksObjItem].arrayLinkData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, Math.ceil(n/2), jsonIn.convId);
 
             if(Math.ceil(n/2) !== (this.lineVertexCount-1)) {
                 this.linksObj[this.currentLinksObjItem].arrayLinkNodeName.push(jsonIn.origin_nodeName);
@@ -2169,7 +2188,7 @@ export class Graph {
                 this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex+1], this.mesh_arrows.normalArray[idxVertex+2], 1.0);
                 this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex+1], this.mesh_arrows.textureArray[idxVertex+2], 1.0);
                 if(o === 0) {
-                    this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.repeatId);
+                    this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.convId);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                     if(jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
                         for(let argNameKey in this._customArgs) {
@@ -2188,7 +2207,7 @@ export class Graph {
                         }
                     }
                 } else {
-                    this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.target_nodeId, jsonIn.origin_nodeId, 1.0, jsonIn.repeatId);
+                    this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.target_nodeId, jsonIn.origin_nodeId, 1.0, jsonIn.convId);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.target_nodeName);
                     if(jsonIn.target_layoutNodeArgumentData !== undefined && jsonIn.target_layoutNodeArgumentData !== null) {
                         for(let argNameKey in this._customArgs) {
