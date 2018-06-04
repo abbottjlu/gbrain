@@ -1162,7 +1162,7 @@ export class Graph {
                     this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
                                         "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                                         "activationFunc": jsonIn.activationFunc,
-                                        "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                        "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[(n*9)+nb] : jsonIn.weight),
                                         "layer_neurons_count": jsonIn.layer_neurons_count,
                                         "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
                                         "layerNum": jsonIn.layerNum,

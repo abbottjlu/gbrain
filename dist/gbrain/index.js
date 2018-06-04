@@ -2864,7 +2864,7 @@ var Graph = exports.Graph = function () {
                         this.addSinapsis({ "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
                             "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                             "activationFunc": jsonIn.activationFunc,
-                            "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n] : jsonIn.weight,
+                            "weight": jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array ? jsonIn.weight[n * 9 + nb] : jsonIn.weight,
                             "layer_neurons_count": jsonIn.layer_neurons_count,
                             "multiplier": convMatrix[jsonIn.convMatrixId][nb] + 0.0001,
                             "layerNum": jsonIn.layerNum,
@@ -5699,27 +5699,27 @@ var GBrain = exports.GBrain = function () {
 
                     _this.graph.layer_defs[_this.graph.layerCount].neurons = [];
                     for (var n = 0; n < displ.length; n++) {
-                        var bias = n === displ.length - 1 ? 1 : 0;
                         var newNeurons = mLayer({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
                             "h": _this.graph.layer_defs[_this.graph.layerCount].out_sy,
                             "isInput": 0,
                             "type": l.type,
                             "posZ": displ[n],
-                            "bias": bias });
-
-                        var wN = l.weights !== undefined && l.weights !== null ? l.weights.slice(0, wh * 9) : null;
+                            "bias": n === displ.length - 1 ? 1 : 0 });
 
                         mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
                             "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
                             "targetLayer": newNeurons,
-                            "weights": wN,
+                            "weights": l.weights !== undefined && l.weights !== null ? l.weights.slice(0, wh * 9) : null,
                             "type": l.type,
                             "layerNum": _this.graph.layerCount - 1,
                             "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
                             "makeBias": 0,
                             "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
                             "convMatrixId": n });
+
                         _this.graph.layer_defs[_this.graph.layerCount].neurons = _this.graph.layer_defs[_this.graph.layerCount].neurons.concat(newNeurons);
+
+                        if (l.weights !== undefined && l.weights !== null) l.weights = l.weights.slice(wh * 9);
 
                         if (_this.graph.layer_defs[_this.graph.layerCount].hasBias === 1 && n === displ.length - 1) mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
                             "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
@@ -5731,8 +5731,6 @@ var GBrain = exports.GBrain = function () {
                             "makeBias": 1,
                             "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
                             "convMatrixId": n });
-
-                        if (l.weights !== undefined && l.weights !== null) l.weights = l.weights.slice(wh * 9);
                     }
 
                     _this.offsetX += 100;
@@ -5760,7 +5758,7 @@ var GBrain = exports.GBrain = function () {
         value: function fromJson(jsonIn) {
             var layer_defs = [];
             for (var n = 0; n < jsonIn.layers.length; n++) {
-                if (jsonIn.layers[n].layer_type === "input") {} else if (jsonIn.layers[n].layer_type === "fc" || jsonIn.layers[n].layer_type === "conv" || jsonIn.layers[n].layer_type === "regression") {
+                if (jsonIn.layers[n].layer_type === "input") {} else if (jsonIn.layers[n].layer_type === "fc" || jsonIn.layers[n].layer_type === "regression") {
                     jsonIn.layers[n].weights = [];
                     for (var key in jsonIn.layers[n].filters[0].w) {
                         for (var nb = 0; nb < jsonIn.layers[n].filters.length; nb++) {
@@ -5769,6 +5767,16 @@ var GBrain = exports.GBrain = function () {
                     }
                     for (var _key in jsonIn.layers[n].biases.w) {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[_key]);
+                    }
+                } else if (jsonIn.layers[n].layer_type === "conv") {
+                    jsonIn.layers[n].weights = [];
+                    for (var _nb = 0; _nb < jsonIn.layers[n].filters.length; _nb++) {
+                        for (var _key2 in jsonIn.layers[n].filters[_nb].w) {
+                            jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[_nb].w[_key2]);
+                        }
+                    }
+                    for (var _key3 in jsonIn.layers[n].biases.w) {
+                        jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[_key3]);
                     }
                 }
             }

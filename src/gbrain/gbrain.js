@@ -185,27 +185,28 @@ export class GBrain {
 
                             this.graph.layer_defs[this.graph.layerCount].neurons = [];
                             for(let n=0; n < displ.length; n++) {
-                                let bias = (n === displ.length-1) ? 1 : 0;
                                 let newNeurons = mLayer({   "w": this.graph.layer_defs[this.graph.layerCount].out_sx,
                                                             "h": this.graph.layer_defs[this.graph.layerCount].out_sy,
                                                             "isInput": 0,
                                                             "type": l.type,
                                                             "posZ": displ[n],
-                                                            "bias": bias});
-
-                                let wN = (l.weights !== undefined && l.weights !== null) ? l.weights.slice(0, wh*9) : null;
+                                                            "bias": ((n === displ.length-1) ? 1 : 0)});
 
                                 mRelations({"w": this.graph.layer_defs[this.graph.layerCount].out_sx,
                                             "originLayer": this.graph.layer_defs[this.graph.layerCount-1].neurons,
                                             "targetLayer": newNeurons,
-                                            "weights": wN,
+                                            "weights": ((l.weights !== undefined && l.weights !== null) ? l.weights.slice(0, wh*9) : null),
                                             "type": l.type,
                                             "layerNum": this.graph.layerCount-1,
                                             "hasBias": this.graph.layer_defs[this.graph.layerCount].hasBias,
                                             "makeBias": 0,
                                             "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length,
                                             "convMatrixId": n});
+
                                 this.graph.layer_defs[this.graph.layerCount].neurons = this.graph.layer_defs[this.graph.layerCount].neurons.concat(newNeurons);
+
+                                if(l.weights !== undefined && l.weights !== null)
+                                    l.weights = l.weights.slice(wh*9);
 
                                 if(this.graph.layer_defs[this.graph.layerCount].hasBias ===1 && n === displ.length-1)
                                     mRelations({"w": this.graph.layer_defs[this.graph.layerCount].out_sx,
@@ -218,9 +219,6 @@ export class GBrain {
                                                 "makeBias": 1,
                                                 "layer_neurons_count": this.graph.layer_defs[this.graph.layerCount-1].length,
                                                 "convMatrixId": n});
-
-                                if(l.weights !== undefined && l.weights !== null)
-                                    l.weights = l.weights.slice(wh*9);
                             }
 
                             this.offsetX += 100;
@@ -251,11 +249,19 @@ export class GBrain {
 
 
             } else if(  jsonIn.layers[n].layer_type === "fc" ||
-                        jsonIn.layers[n].layer_type === "conv" ||
                         jsonIn.layers[n].layer_type === "regression") {
                 jsonIn.layers[n].weights = [];
                 for(let key in jsonIn.layers[n].filters[0].w) {
                     for(let nb=0; nb < jsonIn.layers[n].filters.length; nb++) {
+                        jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
+                    }
+                }
+                for(let key in jsonIn.layers[n].biases.w)
+                    jsonIn.layers[n].weights.push(jsonIn.layers[n].biases.w[key]);
+            } else if(  jsonIn.layers[n].layer_type === "conv") {
+                jsonIn.layers[n].weights = [];
+                for(let nb=0; nb < jsonIn.layers[n].filters.length; nb++) {
+                    for(let key in jsonIn.layers[n].filters[nb].w) {
                         jsonIn.layers[n].weights.push(jsonIn.layers[n].filters[nb].w[key]);
                     }
                 }
