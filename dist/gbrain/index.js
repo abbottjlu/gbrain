@@ -5046,44 +5046,34 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 var _gbrain = require("./gbrain");
 
-var _Plot = require("./Plot.class");
-
-var _AvgWin = require("./AvgWin.class");
-
-var _draggabilly = require("draggabilly");
-
-var _draggabilly2 = _interopRequireDefault(_draggabilly);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 /**
- * ConvNetJS Reinforcement Learning Module (https://github.com/karpathy/convnetjs)
+ * @author Andrej (karpathy). ConvNetJS Reinforcement Learning Module (https://github.com/karpathy/convnetjs)
  */
 /**
  * @class
- * @param {Object} jsonIn
- * @param {HTMLElement} jsonIn.target
- * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
- * @param {int} jsonIn.num_inputs
- * @param {int} jsonIn.num_actions
- * @param {int} jsonIn.temporal_window
- * @param {int} jsonIn.experience_size
- * @param {number} jsonIn.gamma
- * @param {number} jsonIn.epsilon_min
- * @param {number} jsonIn.epsilon_test_time
- * @param {int} jsonIn.start_learn_threshold
- * @param {int} jsonIn.batch_repeats
- * @param {int} jsonIn.learning_steps_total
- * @param {int} jsonIn.learning_steps_burnin
- * @param {Array<Object>} jsonIn.layer_defs
  */
-
 var GBrainRL = exports.GBrainRL = function () {
+    /**
+     * @param {Object} jsonIn
+     * @param {HTMLElement} jsonIn.target
+     * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
+     * @param {int} jsonIn.num_inputs
+     * @param {int} jsonIn.num_actions
+     * @param {int} jsonIn.temporal_window
+     * @param {int} jsonIn.experience_size
+     * @param {number} jsonIn.gamma
+     * @param {number} jsonIn.epsilon_min
+     * @param {number} jsonIn.epsilon_test_time
+     * @param {int} jsonIn.start_learn_threshold
+     * @param {int} jsonIn.batch_repeats
+     * @param {number} jsonIn.learning_rate
+     * @param {int} jsonIn.learning_steps_total
+     * @param {int} jsonIn.learning_steps_burnin
+     * @param {Array<Object>} jsonIn.layer_defs
+     */
     function GBrainRL(jsonIn) {
-        var _this = this;
-
         _classCallCheck(this, GBrainRL);
 
         this.gbrain = null;
@@ -5113,151 +5103,46 @@ var GBrainRL = exports.GBrainRL = function () {
 
         this.experience = [];
 
+        this.loss = 0.0;
+        this.latest_reward = 0;
+        this.learning = true;
+
         this.onLearned = null;
 
-        this.age = 0;
-        this.ageEpoch = 0;
-        this.epoch = 0;
-        this.epsilon = 1.0;
-        this.loss = 0.0;
+        this.clock = 0;
 
-        this.latest_reward = 0;
+        //this.ageEpoch = 0;
+        //this.epoch = 0;
+
+        this.epsilon = 1.0;
+
         this.last_input_array = null;
+        this.lastTotalError = 0;
+
         this.forward_passes = 0;
-        this.learning = true;
 
         this.sweep = 0;
         this.sweepMax = 200;
         this.sweepDir = 0;
         this.sweepEnable = false;
-        this.plotEnable = true;
 
         this.arrInputs = [];
         this.arrTargets = [];
 
-        this.lastTotalError = 0;
-
-        this.showOutputWeighted = false;
-        this.showWD = false;
-        this.showValues = true;
-
-        this.windowSavedPosLeft = 0;
-        this.windowSavedPosTop = 0;
-        this.windowEnabled = true;
-
-        var target = document.createElement("div");
-        document.getElementsByTagName("body")[0].appendChild(target);
-        target.style.width = "950px";
-        target.innerHTML = "\n        <div style=\"font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;\">\n            <div id=\"elGbrainWindowHandle\" style=\"border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;\tdisplay:table;\">\n                <div style=\"padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;\">GBrain</div>\n                <div style=\"width:22px;\tpadding:2px; display:table-cell; vertical-align:middle;\">\n                    <div id=\"elGbrainMinMax\" style=\"font-weight:bold;cursor:pointer;\">&#95;</div>\n                </div>\n            </div>\n            <div id=\"elGbrainContent\" style=\"border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;\tcursor:default;\tpadding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;\">\n                <div style=\"display:inline-block;width:400px;\">\n                    Loss\n                    <canvas id=\"elPlotLoss\" style=\"background:#FFF\"></canvas><br />\n                    Epsilon\n                    <canvas id=\"elPlotEpsilon\" style=\"background:#FFF\"></canvas><br />\n                    <button id=\"BTNID_PLOTMODE\" style=\"display:inline-block;\">Plot mode</button>\n                    <button id=\"BTNID_PLOTENABLE\" style=\"display:inline-block;\">Enable plot</button>\n                    <div id=\"el_info\"></div>\n                    <div>\n                        Show weight*neuron output<input title=\"weight*output\" type=\"checkbox\" id=\"elem_enableOutputWeighted\"/><br />\n                        Show weight dynamics<input title=\"weight dynamics\" type=\"checkbox\" id=\"elem_enableWeightDynamics\"/><br />\n                        Show output values<input title=\"input values\" type=\"checkbox\" checked=\"checked\" id=\"elem_enableShowValues\"/>\n                    </div>\n                    <button id=\"BTNID_SWEEPEPSILON\" style=\"display:inline-block;\">Sweep*reward epsilon</button>\n                    <button id=\"BTNID_STOP\" style=\"display:inline-block;\">Stop train</button>\n                    <button id=\"BTNID_RESUME\" style=\"display:inline-block;\">Resume train</button>\n                    <button id=\"BTNID_TOJSON\" style=\"display:inline-block;\">Output model in console</button>\n                    <button id=\"BTNID_TOLSJSON\" style=\"display:inline-block;\">Save model in LocalStorage</button>\n                    <button id=\"BTNID_FROMLSJSON\" style=\"display:inline-block;\">Load model from LocalStorage</button>\n                </div>\n                <div style=\"display:inline-block;\">\n                    <div id=\"el_gbrainDisplay\"></div>\n                </div>\n            </div>\n        </div>\n        ";
-        this.el_info = target.querySelector("#el_info");
-
-        target.querySelector("#BTNID_PLOTMODE").addEventListener("click", function () {
-            _this.plotLoss.currentMode = _this.plotLoss.currentMode === 0 ? 1 : 0;
-            _this.plotEpsilon.currentMode = _this.plotEpsilon.currentMode === 0 ? 1 : 0;
-        });
-        target.querySelector("#BTNID_PLOTENABLE").addEventListener("click", function () {
-            _this.plotEnable = _this.plotEnable !== true;
-        });
-        target.querySelector("#elem_enableOutputWeighted").addEventListener("click", function () {
-            _this.showOutputWeighted === false ? _this.gbrain.enableShowOutputWeighted() : _this.gbrain.disableShowOutputWeighted();
-            _this.showOutputWeighted = !_this.showOutputWeighted;
-        });
-        target.querySelector("#elem_enableWeightDynamics").addEventListener("click", function () {
-            _this.showWD === false ? _this.gbrain.enableShowWeightDynamics() : _this.gbrain.disableShowWeightDynamics();
-            _this.showWD = !_this.showWD;
-        });
-        target.querySelector("#elem_enableShowValues").addEventListener("click", function () {
-            _this.showValues === false ? _this.gbrain.enableShowValues() : _this.gbrain.disableShowValues();
-            _this.showValues = !_this.showValues;
-        });
-
-        target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", function () {
-            _this.sweepEnable = _this.sweepEnable !== true;
-        });
-
-        target.querySelector("#BTNID_STOP").addEventListener("click", function () {
-            _this.stopLearning();
-        });
-
-        target.querySelector("#BTNID_RESUME").addEventListener("click", function () {
-            _this.resumeLearning();
-        });
-
-        target.querySelector("#BTNID_TOJSON").addEventListener("click", function () {
-            _this.toJson();
-        });
-
-        target.querySelector("#BTNID_TOLSJSON").addEventListener("click", function () {
-            localStorage.trainedModel = _this.toJson();
-        });
-        target.querySelector("#BTNID_FROMLSJSON").addEventListener("click", function () {
-            _this.fromJson(JSON.parse(localStorage.trainedModel));
-        });
-
-        target.querySelector("#elGbrainMinMax").addEventListener("click", function () {
-            if (_this.windowEnabled === true) {
-                _this.windowSavedPosLeft = target.style.left;
-                _this.windowSavedPosTop = target.style.top;
-                target.style.position = "absolute";
-                target.style.left = "50";
-                target.style.top = "0";
-                target.style.width = "150px";
-                target.querySelector("#elGbrainContent").style.display = "none";
-                target.querySelector("#elGbrainMinMax").innerHTML = "&square;";
-                _this.windowEnabled = false;
-            } else {
-                target.style.position = "relative";
-                target.style.left = _this.windowSavedPosLeft;
-                target.style.top = _this.windowSavedPosTop;
-                target.style.width = "950px";
-                target.querySelector("#elGbrainContent").style.display = "block";
-                target.querySelector("#elGbrainMinMax").innerHTML = "&#95;";
-                _this.windowEnabled = true;
-            }
-        });
-
-        var dragg = new _draggabilly2.default(target, {
-            handle: '#elGbrainWindowHandle'
-        });
-        target.style.left = -target.getBoundingClientRect().left + 100 + "px";
-        target.style.top = -target.getBoundingClientRect().top + 100 + "px";
-
-        this.avgLossWin = new _AvgWin.AvgWin();
-
-        this.plotLoss = new _Plot.Plot();
-        this.plotLossCanvas = target.querySelector("#elPlotLoss");
-
-        this.plotEpsilon = new _Plot.Plot();
-        this.plotEpsilonCanvas = target.querySelector("#elPlotEpsilon");
-
-        this.clock = 0;
-
         if (jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) {
-            this.gbrain = new _gbrain.GBrain({ "target": target.querySelector("#el_gbrainDisplay"),
-                "dimensions": { "width": 500, "height": 500 },
-                "enableUI": true,
-                "batch_repeats": jsonIn.batch_repeats,
-                "learning_rate": jsonIn.learning_rate });
+            this.gbrain = new _gbrain.GBrain({ "batch_repeats": jsonIn.batch_repeats,
+                "learning_rate": jsonIn.learning_rate,
+                "onStopLearning": this.stopLearning.bind(this),
+                "onResumeLearning": this.resumeLearning.bind(this),
+                "rlMode": this.learning });
             this.gbrain.makeLayers(jsonIn.layer_defs);
         }
     }
 
+    /** @private */
+
+
     _createClass(GBrainRL, [{
-        key: "fromJson",
-        value: function fromJson(jsonIn) {
-            this.gbrain.fromJson(jsonIn);
-        }
-    }, {
-        key: "toJson",
-
-
-        /**
-         * @returns {String}
-         */
-        value: function toJson() {
-            return this.gbrain.toJson();
-        }
-    }, {
         key: "getNetInput",
         value: function getNetInput(iId, xt) {
             // return s = (x,a,x,a,x,a,xt) state vector.
@@ -5281,11 +5166,17 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "random_action",
+
+
+        /** @private */
         value: function random_action() {
             return Math.floor(Math.random() * this.num_actions);
         }
     }, {
         key: "policy",
+
+
+        /** @private */
         value: function policy(s, onP) {
             // compute the value of doing any action in this state
             // and return the argmax action and its value
@@ -5295,6 +5186,9 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "pushWindow",
+
+
+        /** @private */
         value: function pushWindow(iId, input_array, net_input, action) {
             this.windows[iId].state_window.shift();
             this.windows[iId].state_window.push(input_array);
@@ -5307,6 +5201,9 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "stopLearning",
+
+
+        /** @private */
         value: function stopLearning() {
             this.learning = false;
             this.forward_passes = 0;
@@ -5318,9 +5215,14 @@ var GBrainRL = exports.GBrainRL = function () {
                 this.windows[n].reward_window = new Array(this.window_size);
                 this.windows[n].net_window = new Array(this.window_size);
             }
+
+            this.drawInfo();
         }
     }, {
         key: "resumeLearning",
+
+
+        /** @private */
         value: function resumeLearning() {
             this.learning = true;
             this.forward_passes = 0;
@@ -5334,12 +5236,31 @@ var GBrainRL = exports.GBrainRL = function () {
             }
         }
     }, {
-        key: "forward",
-        value: function forward(input_array, onAction) {
-            var _this2 = this;
+        key: "drawInfo",
 
-            if (this.learning === true) {
-                this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
+
+        /** @private */
+        value: function drawInfo() {
+            this.gbrain.el_info.innerHTML = "learning: " + this.learning + "<br />" + "epsilon: " + this.epsilon + "<br />" + "reward: " + this.latest_reward + "<br />" + "clock: " + this.clock + "<br />" + "age: " + this.gbrain.age + "<br />" + "average Q-learning loss: " + this.loss + "<br />" + "current learning rate: " + this.gbrain.currentLearningRate;
+        }
+    }, {
+        key: "fromJson",
+        value: function fromJson(jsonIn) {
+            this.gbrain.fromJson(jsonIn);
+        }
+    }, {
+        key: "forward",
+
+
+        /**
+         * @param {Array<Array<number>>} input_array
+         * @param {Function} onAction
+         */
+        value: function forward(input_array, onAction) {
+            var _this = this;
+
+            if (this.gbrain.learning === true) {
+                this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0 - (this.gbrain.age - this.learning_steps_burnin) / (this.learning_steps_total - this.learning_steps_burnin)));
                 if (this.sweepEnable === true) {
                     if (this.sweep >= this.sweepMax) this.sweepDir = -1;else if (this.sweep <= 0) this.sweepDir = 1;
                     this.sweep += this.sweepDir;
@@ -5381,7 +5302,7 @@ var GBrainRL = exports.GBrainRL = function () {
                         var retActs = [];
                         for (var _n2 = 0; _n2 < input_array.length; _n2++) {
                             windowsTemp[_n2].action = maxact[_n2].action;
-                            _this2.pushWindow(_n2, windowsTemp[_n2].input_array, windowsTemp[_n2].net_input, windowsTemp[_n2].action);
+                            _this.pushWindow(_n2, windowsTemp[_n2].input_array, windowsTemp[_n2].net_input, windowsTemp[_n2].action);
                             retActs.push(windowsTemp[_n2].action);
                         }
                         onAction(retActs);
@@ -5399,30 +5320,35 @@ var GBrainRL = exports.GBrainRL = function () {
         }
     }, {
         key: "backward",
+
+
+        /**
+         * @param {number} reward
+         * @param {Function} _onLearned
+         */
         value: function backward(reward, _onLearned) {
-            var _this3 = this;
+            var _this2 = this;
 
             this.onLearned = _onLearned;
             this.latest_reward = reward;
 
             this.clock++;
-            this.el_info.innerHTML = "epsilon: " + this.epsilon + "<br />" + "reward: " + this.latest_reward + "<br />" + "age: " + this.age + "<br />" + "average Q-learning loss: " + this.loss + "<br />" + "current learning rate: " + this.gbrain.currentLearningRate;
+            this.drawInfo();
 
-            if (this.learning === false) {
+            if (this.gbrain.learning === false) {
                 this.onLearned();
             } else {
                 //this.average_reward_window.add(reward); TODO
                 this.windows[0].reward_window.shift();
                 this.windows[0].reward_window.push(reward);
 
-                if (this.ageEpoch === this.experience_size) {
+                /*if(this.ageEpoch === this.experience_size) {
                     this.epoch++;
                     this.ageEpoch = 0;
-                    var dec_rate = 1.0;
-                    //this.gbrain.setLearningRate((1.0/(1.0+dec_rate*this.epoch))*this.gbrain.initialLearningRate);
+                    let dec_rate = 1.0;
+                    this.gbrain.setLearningRate((1.0/(1.0+dec_rate*this.epoch))*this.gbrain.initialLearningRate);
                 }
-                this.age++;
-                this.ageEpoch++;
+                this.ageEpoch++;*/
 
                 // it is time t+1 and we have to store (s_t, a_t, r_t, s_{t+1}) as new experience
                 // (given that an appropriate number of state measurements already exist, of course)
@@ -5453,33 +5379,32 @@ var GBrainRL = exports.GBrainRL = function () {
                             }
                         }
                         this.policy(state1_entries, function (maxact) {
-                            _this3.arrInputs = [];
-                            _this3.arrTargets = [];
+                            _this2.arrInputs = [];
+                            _this2.arrTargets = [];
 
-                            for (var _n5 = 0; _n5 < _this3.gbrain.graph.batch_repeats * _this3.gbrain.graph.gpu_batch_size; _n5++) {
-                                var _r = bEntries[_n5].reward0 + _this3.gamma * maxact[_n5].value;
+                            for (var _n5 = 0; _n5 < _this2.gbrain.graph.batch_repeats * _this2.gbrain.graph.gpu_batch_size; _n5++) {
+                                var _r = bEntries[_n5].reward0 + _this2.gamma * maxact[_n5].value;
                                 var ystruct = { dim: bEntries[_n5].action0, val: _r };
 
-                                _this3.arrTargets.push(ystruct);
+                                _this2.arrTargets.push(ystruct);
 
                                 for (var _nb2 = 0; _nb2 < bEntries[_n5].state0.length; _nb2++) {
-                                    _this3.arrInputs.push(bEntries[_n5].state0[_nb2]);
+                                    _this2.arrInputs.push(bEntries[_n5].state0[_nb2]);
                                 }
                             }
 
-                            _this3.gbrain.forward(_this3.arrInputs, function (data) {
-                                _this3.gbrain.train(_this3.arrTargets, function (loss) {
+                            _this2.gbrain.forward(_this2.arrInputs, function (data) {
+                                _this2.gbrain.train(_this2.arrTargets, function (loss) {
+                                    _this2.loss = loss / (_this2.gbrain.graph.batch_repeats * _this2.gbrain.graph.gpu_batch_size);
+                                    _this2.gbrain.avgLossWin.add(Math.min(10.0, _this2.loss));
 
-                                    _this3.loss = loss / (_this3.gbrain.graph.batch_repeats * _this3.gbrain.graph.gpu_batch_size);
-                                    _this3.avgLossWin.add(Math.min(10.0, _this3.loss));
+                                    _this2.gbrain.plotLoss.add(_this2.clock, _this2.gbrain.avgLossWin.get_average());
+                                    if (_this2.gbrain.plotEnable === true) _this2.gbrain.plotLoss.drawSelf(_this2.gbrain.plotLossCanvas);
 
-                                    _this3.plotLoss.add(_this3.clock, _this3.avgLossWin.get_average());
-                                    if (_this3.plotEnable === true) _this3.plotLoss.drawSelf(_this3.plotLossCanvas);
+                                    _this2.gbrain.plotEpsilon.add(_this2.clock, _this2.epsilon);
+                                    if (_this2.gbrain.plotEnable === true) _this2.gbrain.plotEpsilon.drawSelf(_this2.gbrain.plotEpsilonCanvas);
 
-                                    _this3.plotEpsilon.add(_this3.clock, _this3.epsilon);
-                                    if (_this3.plotEnable === true) _this3.plotEpsilon.drawSelf(_this3.plotEpsilonCanvas);
-
-                                    _this3.onLearned(_this3.loss);
+                                    _this2.onLearned(_this2.loss);
                                 });
                             }, false);
                         });
@@ -5495,7 +5420,7 @@ var GBrainRL = exports.GBrainRL = function () {
 global.GBrainRL = GBrainRL;
 module.exports.GBrainRL = GBrainRL;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./AvgWin.class":7,"./Plot.class":11,"./gbrain":16,"draggabilly":1}],16:[function(require,module,exports){
+},{"./gbrain":16}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -5510,14 +5435,20 @@ require("scejs");
 
 var _Graph = require("./Graph.class");
 
+var _Plot = require("./Plot.class");
+
+var _AvgWin = require("./AvgWin.class");
+
+var _draggabilly = require("draggabilly");
+
+var _draggabilly2 = _interopRequireDefault(_draggabilly);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 /**
  * @class
- * @param {Object} jsonIn
- * @param {HTMLElement} jsonIn.target
- * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
- * @param {int} jsonIn.batch_repeats
  */
 var GBrain = exports.GBrain = function () {
     function GBrain(jsonIn) {
@@ -5531,17 +5462,148 @@ var GBrain = exports.GBrain = function () {
 
     /**
      * @param {Object} jsonIn
-     * @param {HTMLElement} jsonIn.target
-     * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
      * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {WebGLRenderingContext} [jsonIn.gl=undefined]
+     * @param {Function} jsonIn.onStopLearning
+     * @param {Function} jsonIn.onResumeLearning
+     * @param {boolean} jsonIn.rlMode
      */
 
 
     _createClass(GBrain, [{
         key: "ini",
         value: function ini(jsonIn) {
+            var _this = this;
+
+            this.rlMode = jsonIn.rlMode !== undefined && jsonIn.rlMode !== null && jsonIn.rlMode === true;
+            this.learning = this.rlMode;
+            this.age = 0;
+
+            this.plotEnable = true;
+
+            this.showOutputWeighted = false;
+            this.showWD = false;
+            this.showValues = true;
+
+            this.windowSavedPosLeft = 0;
+            this.windowSavedPosTop = 0;
+            this.windowEnabled = true;
+
+            ////////////////////////////////////////////
+            // UI PANEL
+            ////////////////////////////////////////////
+            var epsilonStr = function epsilonStr(rlMode) {
+                return rlMode === true ? "\n                    Epsilon\n                    <canvas id=\"elPlotEpsilon\" style=\"background:#FFF\"></canvas><br />" : '';
+            };
+            var rlStr = function rlStr(rlMode) {
+                return rlMode === true ? "\n                    <button id=\"BTNID_SWEEPEPSILON\" style=\"width:120px;display:inline-block;\">Sweep*reward epsilon</button>\n                    <button id=\"BTNID_STOP\" style=\"width:120px;display:inline-block;\">Stop train</button>\n                    <button id=\"BTNID_RESUME\" style=\"width:120px;display:inline-block;\">Resume train</button>" : '';
+            };
+
+            var target = null;
+            var exists = false;
+            if (document.getElementById("elGBrainPanel") !== null) {
+                target = document.getElementById("elGBrainPanel");
+                exists = true;
+            } else {
+                target = document.createElement("div");
+                document.getElementsByTagName("body")[0].appendChild(target);
+            }
+            target.id = "elGBrainPanel";
+            target.style.width = "950px";
+            target.innerHTML = "\n        <div style=\"font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;\">\n            <div id=\"elGbrainWindowHandle\" style=\"border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;\tdisplay:table;\">\n                <div style=\"padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;\">GBrain</div>\n                <div style=\"width:22px;\tpadding:2px; display:table-cell; vertical-align:middle;\">\n                    <div id=\"elGbrainMinMax\" style=\"font-weight:bold;cursor:pointer;\">&#95;</div>\n                </div>\n            </div>\n            <div id=\"elGbrainContent\" style=\"border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;\tcursor:default;\tpadding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;\">\n                <div style=\"display:inline-block;width:400px;vertical-align:top;\">\n                    Loss\n                    <canvas id=\"elPlotLoss\" style=\"background:#FFF\"></canvas><br />\n                    " + epsilonStr(this.rlMode) + "\n                    <button id=\"BTNID_PLOTMODE\" style=\"display:inline-block;\">Plot mode</button>\n                    <button id=\"BTNID_PLOTENABLE\" style=\"display:inline-block;\">Enable plot</button>\n                    <div id=\"el_info\"></div>\n                    <div>\n                        Show weight*neuron output<input title=\"weight*output\" type=\"checkbox\" id=\"elem_enableOutputWeighted\"/><br />\n                        Show weight dynamics<input title=\"weight dynamics\" type=\"checkbox\" id=\"elem_enableWeightDynamics\"/><br />\n                        Show output values<input title=\"input values\" type=\"checkbox\" checked=\"checked\" id=\"elem_enableShowValues\"/>\n                    </div>\n                    " + rlStr(this.rlMode) + "\n                    <button id=\"BTNID_TOJSON\" style=\"width:120px;display:inline-block;\">Output model in console</button>\n                    <button id=\"BTNID_TOLSJSON\" style=\"width:120px;display:inline-block;\">Save model in LocalStorage</button>\n                    <button id=\"BTNID_FROMLSJSON\" style=\"width:120px;display:inline-block;\">Load model from LocalStorage</button>\n                </div>\n                <div style=\"display:inline-block;\">\n                    <div id=\"el_gbrainDisplay\"></div>\n                </div>\n            </div>\n        </div>\n        ";
+            this.el_info = target.querySelector("#el_info");
+
+            target.querySelector("#BTNID_PLOTMODE").addEventListener("click", function () {
+                _this.plotLoss.currentMode = _this.plotLoss.currentMode === 0 ? 1 : 0;
+                _this.plotEpsilon.currentMode = _this.plotEpsilon.currentMode === 0 ? 1 : 0;
+            });
+            target.querySelector("#BTNID_PLOTENABLE").addEventListener("click", function () {
+                _this.plotEnable = _this.plotEnable !== true;
+            });
+            target.querySelector("#elem_enableOutputWeighted").addEventListener("click", function () {
+                _this.showOutputWeighted === false ? _this.graph.enableShowOutputWeighted() : _this.graph.disableShowOutputWeighted();
+                _this.showOutputWeighted = !_this.showOutputWeighted;
+            });
+            target.querySelector("#elem_enableWeightDynamics").addEventListener("click", function () {
+                _this.showWD === false ? _this.graph.enableShowWeightDynamics() : _this.graph.disableShowWeightDynamics();
+                _this.showWD = !_this.showWD;
+            });
+            target.querySelector("#elem_enableShowValues").addEventListener("click", function () {
+                _this.showValues === false ? _this.graph.enableShowValues() : _this.graph.disableShowValues();
+                _this.showValues = !_this.showValues;
+            });
+
+            target.querySelector("#BTNID_TOJSON").addEventListener("click", function () {
+                _this.toJson();
+            });
+
+            target.querySelector("#BTNID_TOLSJSON").addEventListener("click", function () {
+                localStorage.trainedModel = _this.toJson();
+            });
+            target.querySelector("#BTNID_FROMLSJSON").addEventListener("click", function () {
+                _this.fromJson(JSON.parse(localStorage.trainedModel));
+            });
+
+            target.querySelector("#elGbrainMinMax").addEventListener("click", function () {
+                if (_this.windowEnabled === true) {
+                    _this.windowSavedPosLeft = target.style.left;
+                    _this.windowSavedPosTop = target.style.top;
+                    target.style.position = "absolute";
+                    target.style.left = "50";
+                    target.style.top = "0";
+                    target.style.width = "150px";
+                    target.querySelector("#elGbrainContent").style.display = "none";
+                    target.querySelector("#elGbrainMinMax").innerHTML = "&square;";
+                    _this.windowEnabled = false;
+                } else {
+                    target.style.position = "relative";
+                    target.style.left = _this.windowSavedPosLeft;
+                    target.style.top = _this.windowSavedPosTop;
+                    target.style.width = "950px";
+                    target.querySelector("#elGbrainContent").style.display = "block";
+                    target.querySelector("#elGbrainMinMax").innerHTML = "&#95;";
+                    _this.windowEnabled = true;
+                }
+            });
+
+            if (this.rlMode === true) {
+                target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", function () {
+                    _this.sweepEnable = _this.sweepEnable !== true;
+                });
+
+                target.querySelector("#BTNID_STOP").addEventListener("click", function () {
+                    _this.stopLearning();
+                });
+
+                target.querySelector("#BTNID_RESUME").addEventListener("click", function () {
+                    _this.resumeLearning();
+                });
+            }
+
+            var dragg = new _draggabilly2.default(target, {
+                handle: '#elGbrainWindowHandle'
+            });
+            if (exists === false) {
+                target.style.left = -target.getBoundingClientRect().left + 100 + "px";
+                target.style.top = -target.getBoundingClientRect().top + 100 + "px";
+            }
+
+            this.avgLossWin = new _AvgWin.AvgWin();
+
+            this.plotLoss = new _Plot.Plot();
+            this.plotLossCanvas = target.querySelector("#elPlotLoss");
+
+            this.plotEpsilon = new _Plot.Plot();
+            this.plotEpsilonCanvas = target.querySelector("#elPlotEpsilon");
+
+            ////////////////////////////////////////////
+            // SCEJS
+            ////////////////////////////////////////////
+            jsonIn.target = target.querySelector("#el_gbrainDisplay");
+            jsonIn.dimensions = { "width": 500, "height": 500 };
+            jsonIn.enableUI = true;
+
             this.sce = new SCE();
             this.sce.initialize(jsonIn);
 
@@ -5571,8 +5633,23 @@ var GBrain = exports.GBrain = function () {
             this.initialLearningRate = jsonIn.learning_rate;
             this.currentLearningRate = jsonIn.learning_rate;
 
+            this.onStopLearning = jsonIn.onStopLearning;
+            this.onResumeLearning = jsonIn.onResumeLearning;
+
             var mesh_point = new Mesh().loadPoint();
             //this.graph.setNodeMesh(mesh_point);
+        }
+    }, {
+        key: "stopLearning",
+        value: function stopLearning() {
+            this.learning = false;
+            this.onStopLearning();
+        }
+    }, {
+        key: "resumeLearning",
+        value: function resumeLearning() {
+            this.learning = true;
+            this.onResumeLearning();
         }
     }, {
         key: "makeLayers",
@@ -5582,19 +5659,19 @@ var GBrain = exports.GBrain = function () {
          * @param {Array<Object>} layer_defs
          */
         value: function makeLayers(layer_defs) {
-            var _this = this;
+            var _this2 = this;
 
             var mLayer = function mLayer(jsonIn) {
                 if (jsonIn.bias !== undefined && jsonIn.bias !== null && jsonIn.bias === 1) {
-                    _this.graph.layer_defs[_this.graph.layerCount].hasBias = _this.graph.layer_defs[_this.graph.layerCount + 1].activation === "relu" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "regression" || _this.graph.layer_defs[_this.graph.layerCount + 1].type === "classification" ? 1.0 : 0.0;
-                } else _this.graph.layer_defs[_this.graph.layerCount].hasBias = 0.0;
+                    _this2.graph.layer_defs[_this2.graph.layerCount].hasBias = _this2.graph.layer_defs[_this2.graph.layerCount + 1].activation === "relu" || _this2.graph.layer_defs[_this2.graph.layerCount + 1].type === "regression" || _this2.graph.layer_defs[_this2.graph.layerCount + 1].type === "classification" ? 1.0 : 0.0;
+                } else _this2.graph.layer_defs[_this2.graph.layerCount].hasBias = 0.0;
 
-                return _this.graph.createNeuronLayer(jsonIn.w, jsonIn.h, [_this.offsetX, 0.0, jsonIn.posZ, 1.0], 5.0, _this.graph.layer_defs[_this.graph.layerCount].hasBias, jsonIn.isInput);
+                return _this2.graph.createNeuronLayer(jsonIn.w, jsonIn.h, [_this2.offsetX, 0.0, jsonIn.posZ, 1.0], 5.0, _this2.graph.layer_defs[_this2.graph.layerCount].hasBias, jsonIn.isInput);
             };
 
             var mRelations = function mRelations(jsonIn) {
                 if (jsonIn.type === "fc") {
-                    _this.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": jsonIn.originLayer,
+                    _this2.graph.connectNeuronLayerWithNeuronLayer({ "neuronLayerOrigin": jsonIn.originLayer,
                         "neuronLayerTarget": jsonIn.targetLayer,
                         "weights": jsonIn.weights !== undefined && jsonIn.weights !== null ? jsonIn.weights : null,
                         "layer_neurons_count": jsonIn.layer_neurons_count,
@@ -5602,7 +5679,7 @@ var GBrain = exports.GBrain = function () {
                         "hasBias": jsonIn.hasBias,
                         "makeBias": jsonIn.makeBias }); // TODO l.activation
                 } else if (jsonIn.type === "conv") {
-                    _this.graph.connectConvXYNeuronsFromXYNeurons({ "w": jsonIn.w,
+                    _this2.graph.connectConvXYNeuronsFromXYNeurons({ "w": jsonIn.w,
                         "neuronLayerOrigin": jsonIn.originLayer,
                         "neuronLayerTarget": jsonIn.targetLayer,
                         "weights": jsonIn.weights !== undefined && jsonIn.weights !== null ? jsonIn.weights : null,
@@ -5627,17 +5704,17 @@ var GBrain = exports.GBrain = function () {
                 }
                 var arr = [];
                 for (var _n = 0; _n < h; _n++) {
-                    var name = "O " + _this.outputCount;
+                    var name = "O " + _this2.outputCount;
                     arr.push(name);
-                    _this.graph.addEfferentNeuron(name, [_this.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
-                    _this.graph.connectNeuronLayerWithNeuron({ "neuronLayer": originLayer,
-                        "neuron": "O " + _this.outputCount,
+                    _this2.graph.addEfferentNeuron(name, [_this2.offsetX, 0.0, offsetZ, 1.0]); // efferent neuron (output)
+                    _this2.graph.connectNeuronLayerWithNeuron({ "neuronLayer": originLayer,
+                        "neuron": "O " + _this2.outputCount,
                         "weight": weights !== undefined && weights !== null ? newWe.slice(0, originLayer.length) : null,
                         "layer_neurons_count": originLayer.length,
-                        "layerNum": _this.graph.layerCount - 1 });
+                        "layerNum": _this2.graph.layerCount - 1 });
                     if (weights !== undefined && weights !== null) newWe = newWe.slice(originLayer.length);
 
-                    _this.outputCount++;
+                    _this2.outputCount++;
                     offsetZ += 5.0;
                 }
 
@@ -5648,7 +5725,7 @@ var GBrain = exports.GBrain = function () {
             this.offsetX = 0;
 
             var lType = { "input": function input(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = l.out_sx !== undefined ? mLayer({ "w": l.out_sx,
+                    _this2.graph.layer_defs[_this2.graph.layerCount].neurons = l.out_sx !== undefined ? mLayer({ "w": l.out_sx,
                         "h": l.out_sy,
                         "isInput": 1,
                         "type": l.type,
@@ -5660,10 +5737,10 @@ var GBrain = exports.GBrain = function () {
                         "posZ": 0,
                         "bias": 1 });
 
-                    _this.offsetX += l.out_sx !== undefined ? 100 : 30;
+                    _this2.offsetX += l.out_sx !== undefined ? 100 : 30;
                 },
                 "fc": function fc(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = mLayer({ "w": 1,
+                    _this2.graph.layer_defs[_this2.graph.layerCount].neurons = mLayer({ "w": 1,
                         "h": l.num_neurons,
                         "isInput": 0,
                         "type": l.type,
@@ -5671,78 +5748,78 @@ var GBrain = exports.GBrain = function () {
                         "bias": 1 });
 
                     mRelations({ "w": null,
-                        "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
-                        "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                        "originLayer": _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons,
+                        "targetLayer": _this2.graph.layer_defs[_this2.graph.layerCount].neurons,
                         "weights": l.weights,
                         "type": l.type,
-                        "layerNum": _this.graph.layerCount - 1,
-                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "layerNum": _this2.graph.layerCount - 1,
+                        "hasBias": _this2.graph.layer_defs[_this2.graph.layerCount].hasBias,
                         "makeBias": 0,
-                        "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length });
+                        "layer_neurons_count": _this2.graph.layer_defs[_this2.graph.layerCount - 1].length });
                     mRelations({ "w": null,
-                        "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
-                        "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                        "originLayer": _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons,
+                        "targetLayer": _this2.graph.layer_defs[_this2.graph.layerCount].neurons,
                         "weights": l.weights,
                         "type": l.type,
-                        "layerNum": _this.graph.layerCount - 1,
-                        "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                        "layerNum": _this2.graph.layerCount - 1,
+                        "hasBias": _this2.graph.layer_defs[_this2.graph.layerCount].hasBias,
                         "makeBias": 1,
-                        "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length });
+                        "layer_neurons_count": _this2.graph.layer_defs[_this2.graph.layerCount - 1].length });
 
-                    _this.offsetX += 30;
+                    _this2.offsetX += 30;
                 },
                 "conv": function conv(l) {
                     var displ = [-180, -120, -60, 60, 120, 180];
 
                     if (l.type === "conv") {
-                        _this.graph.layer_defs[_this.graph.layerCount].out_sx = _this.graph.layer_defs[_this.graph.layerCount - 1].out_sx - 2;
-                        _this.graph.layer_defs[_this.graph.layerCount].out_sy = _this.graph.layer_defs[_this.graph.layerCount - 1].out_sy - 2;
+                        _this2.graph.layer_defs[_this2.graph.layerCount].out_sx = _this2.graph.layer_defs[_this2.graph.layerCount - 1].out_sx - 2;
+                        _this2.graph.layer_defs[_this2.graph.layerCount].out_sy = _this2.graph.layer_defs[_this2.graph.layerCount - 1].out_sy - 2;
                     }
-                    var wh = _this.graph.layer_defs[_this.graph.layerCount].out_sx * _this.graph.layer_defs[_this.graph.layerCount].out_sy;
+                    var wh = _this2.graph.layer_defs[_this2.graph.layerCount].out_sx * _this2.graph.layer_defs[_this2.graph.layerCount].out_sy;
 
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = [];
+                    _this2.graph.layer_defs[_this2.graph.layerCount].neurons = [];
                     for (var n = 0; n < displ.length; n++) {
-                        var newNeurons = mLayer({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
-                            "h": _this.graph.layer_defs[_this.graph.layerCount].out_sy,
+                        var newNeurons = mLayer({ "w": _this2.graph.layer_defs[_this2.graph.layerCount].out_sx,
+                            "h": _this2.graph.layer_defs[_this2.graph.layerCount].out_sy,
                             "isInput": 0,
                             "type": l.type,
                             "posZ": displ[n],
                             "bias": n === displ.length - 1 ? 1 : 0 });
 
-                        mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
-                            "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
+                        mRelations({ "w": _this2.graph.layer_defs[_this2.graph.layerCount].out_sx,
+                            "originLayer": _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons,
                             "targetLayer": newNeurons,
                             "weights": l.weights !== undefined && l.weights !== null ? l.weights.slice(0, wh * 9) : null,
                             "type": l.type,
-                            "layerNum": _this.graph.layerCount - 1,
-                            "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                            "layerNum": _this2.graph.layerCount - 1,
+                            "hasBias": _this2.graph.layer_defs[_this2.graph.layerCount].hasBias,
                             "makeBias": 0,
-                            "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
+                            "layer_neurons_count": _this2.graph.layer_defs[_this2.graph.layerCount - 1].length,
                             "convMatrixId": n });
 
-                        _this.graph.layer_defs[_this.graph.layerCount].neurons = _this.graph.layer_defs[_this.graph.layerCount].neurons.concat(newNeurons);
+                        _this2.graph.layer_defs[_this2.graph.layerCount].neurons = _this2.graph.layer_defs[_this2.graph.layerCount].neurons.concat(newNeurons);
 
                         if (l.weights !== undefined && l.weights !== null) l.weights = l.weights.slice(wh * 9);
 
-                        if (_this.graph.layer_defs[_this.graph.layerCount].hasBias === 1 && n === displ.length - 1) mRelations({ "w": _this.graph.layer_defs[_this.graph.layerCount].out_sx,
-                            "originLayer": _this.graph.layer_defs[_this.graph.layerCount - 1].neurons,
-                            "targetLayer": _this.graph.layer_defs[_this.graph.layerCount].neurons,
+                        if (_this2.graph.layer_defs[_this2.graph.layerCount].hasBias === 1 && n === displ.length - 1) mRelations({ "w": _this2.graph.layer_defs[_this2.graph.layerCount].out_sx,
+                            "originLayer": _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons,
+                            "targetLayer": _this2.graph.layer_defs[_this2.graph.layerCount].neurons,
                             "weights": l.weights,
                             "type": l.type,
-                            "layerNum": _this.graph.layerCount - 1,
-                            "hasBias": _this.graph.layer_defs[_this.graph.layerCount].hasBias,
+                            "layerNum": _this2.graph.layerCount - 1,
+                            "hasBias": _this2.graph.layer_defs[_this2.graph.layerCount].hasBias,
                             "makeBias": 1,
-                            "layer_neurons_count": _this.graph.layer_defs[_this.graph.layerCount - 1].length,
+                            "layer_neurons_count": _this2.graph.layer_defs[_this2.graph.layerCount - 1].length,
                             "convMatrixId": n });
                     }
 
-                    _this.offsetX += 100;
+                    _this2.offsetX += 100;
                 },
                 "regression": function regression(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = ll(l.num_neurons, _this.graph.layer_defs[_this.graph.layerCount - 1].neurons, l.weights);
+                    _this2.graph.layer_defs[_this2.graph.layerCount].neurons = ll(l.num_neurons, _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons, l.weights);
                 },
                 "classification": function classification(l) {
-                    _this.graph.layer_defs[_this.graph.layerCount].neurons = ll(l.num_classes, _this.graph.layer_defs[_this.graph.layerCount - 1].neurons, l.weights);
+                    _this2.graph.layer_defs[_this2.graph.layerCount].neurons = ll(l.num_classes, _this2.graph.layer_defs[_this2.graph.layerCount - 1].neurons, l.weights);
                 } };
             for (var n = 0; n < this.graph.layer_defs.length; n++) {
                 var l = this.graph.layer_defs[n];
@@ -5758,6 +5835,11 @@ var GBrain = exports.GBrain = function () {
         }
     }, {
         key: "fromJson",
+
+
+        /**
+         * @param {Object} jsonIn
+         */
         value: function fromJson(jsonIn) {
             var layer_defs = [];
             for (var n = 0; n < jsonIn.layers.length; n++) {
@@ -5793,8 +5875,14 @@ var GBrain = exports.GBrain = function () {
             this.ini({ "target": this.sce.target,
                 "dimensions": this.sce.dimensions,
                 "batch_repeats": this.graph.batch_repeats,
-                "learning_rate": this.currentLearningRate });
+                "learning_rate": this.currentLearningRate,
+                "onStopLearning": this.onStopLearning,
+                "onResumeLearning": this.onResumeLearning,
+                "rlMode": this.rlMode
+            });
             this.makeLayers(layer_defs);
+
+            if (this.rlMode === true && this.learning === false) this.stopLearning();
         }
     }, {
         key: "toJson",
@@ -5831,6 +5919,7 @@ var GBrain = exports.GBrain = function () {
          * @param {Function} onTrain
          */
         value: function train(reward, onTrain) {
+            this.age++;
             this.graph.train({ "reward": reward,
                 "onTrained": function onTrained(loss) {
                     onTrain(loss);
@@ -5885,7 +5974,7 @@ var GBrain = exports.GBrain = function () {
 global.GBrain = GBrain;
 module.exports.GBrain = GBrain;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./Graph.class":8,"scejs":4}],17:[function(require,module,exports){
+},{"./AvgWin.class":7,"./Graph.class":8,"./Plot.class":11,"draggabilly":1,"scejs":4}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 

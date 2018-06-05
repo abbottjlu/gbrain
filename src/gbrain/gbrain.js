@@ -1,11 +1,11 @@
 import "scejs";
 import {Graph} from "./Graph.class";
+import {Plot} from "./Plot.class";
+import {AvgWin} from "./AvgWin.class";
+import Draggabilly from 'draggabilly';
+
 /**
  * @class
- * @param {Object} jsonIn
- * @param {HTMLElement} jsonIn.target
- * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
- * @param {int} jsonIn.batch_repeats
  */
 export class GBrain {
     constructor(jsonIn) {
@@ -17,13 +17,182 @@ export class GBrain {
 
     /**
      * @param {Object} jsonIn
-     * @param {HTMLElement} jsonIn.target
-     * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
      * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {WebGLRenderingContext} [jsonIn.gl=undefined]
+     * @param {Function} jsonIn.onStopLearning
+     * @param {Function} jsonIn.onResumeLearning
+     * @param {boolean} jsonIn.rlMode
      */
     ini(jsonIn) {
+        this.rlMode = (jsonIn.rlMode !== undefined && jsonIn.rlMode !== null && jsonIn.rlMode === true);
+        this.learning = this.rlMode;
+        this.age = 0;
+
+        this.plotEnable = true;
+
+        this.showOutputWeighted = false;
+        this.showWD = false;
+        this.showValues = true;
+
+        this.windowSavedPosLeft = 0;
+        this.windowSavedPosTop = 0;
+        this.windowEnabled = true;
+
+        ////////////////////////////////////////////
+        // UI PANEL
+        ////////////////////////////////////////////
+        let epsilonStr = (rlMode) => {
+            return (rlMode === true)
+                ? `
+                    Epsilon
+                    <canvas id="elPlotEpsilon" style="background:#FFF"></canvas><br />`
+                : '';
+        };
+        let rlStr = (rlMode) => {
+            return (rlMode === true)
+                        ? `
+                    <button id="BTNID_SWEEPEPSILON" style="width:120px;display:inline-block;">Sweep*reward epsilon</button>
+                    <button id="BTNID_STOP" style="width:120px;display:inline-block;">Stop train</button>
+                    <button id="BTNID_RESUME" style="width:120px;display:inline-block;">Resume train</button>`
+                        : '';
+        };
+
+        let target = null;
+        let exists = false;
+        if(document.getElementById("elGBrainPanel") !== null) {
+            target = document.getElementById("elGBrainPanel");
+            exists = true;
+        } else {
+            target = document.createElement("div");
+            document.getElementsByTagName("body")[0].appendChild(target);
+        }
+        target.id = "elGBrainPanel";
+        target.style.width = "950px";
+        target.innerHTML = `
+        <div style="font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;">
+            <div id="elGbrainWindowHandle" style="border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;	display:table;">
+                <div style="padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;">GBrain</div>
+                <div style="width:22px;	padding:2px; display:table-cell; vertical-align:middle;">
+                    <div id="elGbrainMinMax" style="font-weight:bold;cursor:pointer;">&#95;</div>
+                </div>
+            </div>
+            <div id="elGbrainContent" style="border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;	cursor:default;	padding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;">
+                <div style="display:inline-block;width:400px;vertical-align:top;">
+                    Loss
+                    <canvas id="elPlotLoss" style="background:#FFF"></canvas><br />
+                    ${epsilonStr(this.rlMode)}
+                    <button id="BTNID_PLOTMODE" style="display:inline-block;">Plot mode</button>
+                    <button id="BTNID_PLOTENABLE" style="display:inline-block;">Enable plot</button>
+                    <div id="el_info"></div>
+                    <div>
+                        Show weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
+                        Show weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/><br />
+                        Show output values<input title="input values" type="checkbox" checked="checked" id="elem_enableShowValues"/>
+                    </div>
+                    ${rlStr(this.rlMode)}
+                    <button id="BTNID_TOJSON" style="width:120px;display:inline-block;">Output model in console</button>
+                    <button id="BTNID_TOLSJSON" style="width:120px;display:inline-block;">Save model in LocalStorage</button>
+                    <button id="BTNID_FROMLSJSON" style="width:120px;display:inline-block;">Load model from LocalStorage</button>
+                </div>
+                <div style="display:inline-block;">
+                    <div id="el_gbrainDisplay"></div>
+                </div>
+            </div>
+        </div>
+        `;
+        this.el_info = target.querySelector("#el_info");
+
+        target.querySelector("#BTNID_PLOTMODE").addEventListener("click", () => {
+            this.plotLoss.currentMode = (this.plotLoss.currentMode === 0) ? 1 : 0;
+            this.plotEpsilon.currentMode = (this.plotEpsilon.currentMode === 0) ? 1 : 0;
+        });
+        target.querySelector("#BTNID_PLOTENABLE").addEventListener("click", () => {
+            this.plotEnable = (this.plotEnable !== true);
+        });
+        target.querySelector("#elem_enableOutputWeighted").addEventListener("click", () => {
+            (this.showOutputWeighted === false) ? this.graph.enableShowOutputWeighted() : this.graph.disableShowOutputWeighted();
+            this.showOutputWeighted = !this.showOutputWeighted;
+        });
+        target.querySelector("#elem_enableWeightDynamics").addEventListener("click", () => {
+            (this.showWD === false) ? this.graph.enableShowWeightDynamics() : this.graph.disableShowWeightDynamics();
+            this.showWD = !this.showWD;
+        });
+        target.querySelector("#elem_enableShowValues").addEventListener("click", () => {
+            (this.showValues === false) ? this.graph.enableShowValues() : this.graph.disableShowValues();
+            this.showValues = !this.showValues;
+        });
+
+        target.querySelector("#BTNID_TOJSON").addEventListener("click", () => {
+            this.toJson();
+        });
+
+        target.querySelector("#BTNID_TOLSJSON").addEventListener("click", () => {
+            localStorage.trainedModel = this.toJson();
+        });
+        target.querySelector("#BTNID_FROMLSJSON").addEventListener("click", () => {
+            this.fromJson(JSON.parse(localStorage.trainedModel));
+        });
+
+        target.querySelector("#elGbrainMinMax").addEventListener("click", () => {
+            if(this.windowEnabled === true) {
+                this.windowSavedPosLeft = target.style.left;
+                this.windowSavedPosTop = target.style.top;
+                target.style.position = "absolute";
+                target.style.left = "50";
+                target.style.top = "0";
+                target.style.width = "150px";
+                target.querySelector("#elGbrainContent").style.display = "none";
+                target.querySelector("#elGbrainMinMax").innerHTML = "&square;";
+                this.windowEnabled = false;
+            } else {
+                target.style.position = "relative";
+                target.style.left = this.windowSavedPosLeft;
+                target.style.top = this.windowSavedPosTop;
+                target.style.width = "950px";
+                target.querySelector("#elGbrainContent").style.display = "block";
+                target.querySelector("#elGbrainMinMax").innerHTML = "&#95;";
+                this.windowEnabled = true;
+            }
+        });
+
+        if(this.rlMode === true) {
+            target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", () => {
+                this.sweepEnable = (this.sweepEnable !== true);
+            });
+
+            target.querySelector("#BTNID_STOP").addEventListener("click", () => {
+                this.stopLearning();
+            });
+
+            target.querySelector("#BTNID_RESUME").addEventListener("click", () => {
+                this.resumeLearning();
+            });
+        }
+
+        let dragg = new Draggabilly( target, {
+            handle: '#elGbrainWindowHandle'
+        });
+        if(exists === false) {
+            target.style.left = (-target.getBoundingClientRect().left+100)+"px";
+            target.style.top = (-target.getBoundingClientRect().top+100)+"px";
+        }
+
+        this.avgLossWin = new AvgWin();
+
+        this.plotLoss = new Plot();
+        this.plotLossCanvas = target.querySelector("#elPlotLoss");
+
+        this.plotEpsilon = new Plot();
+        this.plotEpsilonCanvas = target.querySelector("#elPlotEpsilon");
+
+        ////////////////////////////////////////////
+        // SCEJS
+        ////////////////////////////////////////////
+        jsonIn.target = target.querySelector("#el_gbrainDisplay");
+        jsonIn.dimensions = {"width": 500, "height": 500};
+        jsonIn.enableUI = true;
+
         this.sce = new SCE();
         this.sce.initialize(jsonIn);
 
@@ -53,8 +222,22 @@ export class GBrain {
         this.initialLearningRate = jsonIn.learning_rate;
         this.currentLearningRate = jsonIn.learning_rate;
 
+
+        this.onStopLearning = jsonIn.onStopLearning;
+        this.onResumeLearning = jsonIn.onResumeLearning;
+
         let mesh_point = new Mesh().loadPoint();
         //this.graph.setNodeMesh(mesh_point);
+    };
+
+    stopLearning() {
+        this.learning = false;
+        this.onStopLearning();
+    };
+
+    resumeLearning() {
+        this.learning = true;
+        this.onResumeLearning();
     };
 
     /**
@@ -242,6 +425,9 @@ export class GBrain {
         this.graph.setLearningRate(this.currentLearningRate);
     };
 
+    /**
+     * @param {Object} jsonIn
+     */
     fromJson(jsonIn) {
         let layer_defs = [];
         for(let n=0; n < jsonIn.layers.length; n++) {
@@ -289,8 +475,15 @@ export class GBrain {
         this.ini({  "target": this.sce.target,
                     "dimensions": this.sce.dimensions,
                     "batch_repeats": this.graph.batch_repeats,
-                    "learning_rate": this.currentLearningRate});
+                    "learning_rate": this.currentLearningRate,
+                    "onStopLearning": this.onStopLearning,
+                    "onResumeLearning": this.onResumeLearning,
+                    "rlMode": this.rlMode
+                    });
         this.makeLayers(layer_defs);
+
+        if(this.rlMode === true && this.learning === false)
+            this.stopLearning();
     };
 
     /**
@@ -318,6 +511,7 @@ export class GBrain {
      * @param {Function} onTrain
      */
     train(reward, onTrain) {
+        this.age++;
         this.graph.train({  "reward": reward,
                             "onTrained": (loss) => {
                                 onTrain(loss);

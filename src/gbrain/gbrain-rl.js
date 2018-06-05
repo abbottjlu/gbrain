@@ -1,31 +1,30 @@
 import {GBrain} from "./gbrain";
-import {Plot} from "./Plot.class";
-import {AvgWin} from "./AvgWin.class";
-import Draggabilly from 'draggabilly';
 
 /**
- * ConvNetJS Reinforcement Learning Module (https://github.com/karpathy/convnetjs)
+ * @author Andrej (karpathy). ConvNetJS Reinforcement Learning Module (https://github.com/karpathy/convnetjs)
  */
 /**
  * @class
- * @param {Object} jsonIn
- * @param {HTMLElement} jsonIn.target
- * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
- * @param {int} jsonIn.num_inputs
- * @param {int} jsonIn.num_actions
- * @param {int} jsonIn.temporal_window
- * @param {int} jsonIn.experience_size
- * @param {number} jsonIn.gamma
- * @param {number} jsonIn.epsilon_min
- * @param {number} jsonIn.epsilon_test_time
- * @param {int} jsonIn.start_learn_threshold
- * @param {int} jsonIn.batch_repeats
- * @param {int} jsonIn.learning_steps_total
- * @param {int} jsonIn.learning_steps_burnin
- * @param {Array<Object>} jsonIn.layer_defs
  */
-
 export class GBrainRL {
+    /**
+     * @param {Object} jsonIn
+     * @param {HTMLElement} jsonIn.target
+     * @param {Object} [jsonIn.dimensions={width: Int, height: Int}]
+     * @param {int} jsonIn.num_inputs
+     * @param {int} jsonIn.num_actions
+     * @param {int} jsonIn.temporal_window
+     * @param {int} jsonIn.experience_size
+     * @param {number} jsonIn.gamma
+     * @param {number} jsonIn.epsilon_min
+     * @param {number} jsonIn.epsilon_test_time
+     * @param {int} jsonIn.start_learn_threshold
+     * @param {int} jsonIn.batch_repeats
+     * @param {number} jsonIn.learning_rate
+     * @param {int} jsonIn.learning_steps_total
+     * @param {int} jsonIn.learning_steps_burnin
+     * @param {Array<Object>} jsonIn.layer_defs
+     */
     constructor(jsonIn) {
         this.gbrain = null;
 
@@ -54,182 +53,43 @@ export class GBrainRL {
 
         this.experience = [];
 
+        this.loss = 0.0;
+        this.latest_reward = 0;
+        this.learning = true;
 
         this.onLearned = null;
 
-        this.age = 0;
-        this.ageEpoch = 0;
-        this.epoch = 0;
-        this.epsilon = 1.0;
-        this.loss = 0.0;
+        this.clock = 0;
 
-        this.latest_reward = 0;
+        //this.ageEpoch = 0;
+        //this.epoch = 0;
+
+        this.epsilon = 1.0;
+
         this.last_input_array = null;
+        this.lastTotalError = 0;
+
         this.forward_passes = 0;
-        this.learning = true;
 
         this.sweep = 0;
         this.sweepMax = 200;
         this.sweepDir = 0;
         this.sweepEnable = false;
-        this.plotEnable = true;
 
         this.arrInputs = [];
         this.arrTargets = [];
 
-        this.lastTotalError = 0;
-
-
-        this.showOutputWeighted = false;
-        this.showWD = false;
-        this.showValues = true;
-
-        this.windowSavedPosLeft = 0;
-        this.windowSavedPosTop = 0;
-        this.windowEnabled = true;
-
-        let target = document.createElement("div");
-        document.getElementsByTagName("body")[0].appendChild(target);
-        target.style.width = "950px";
-        target.innerHTML = `
-        <div style="font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;">
-            <div id="elGbrainWindowHandle" style="border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;	display:table;">
-                <div style="padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;">GBrain</div>
-                <div style="width:22px;	padding:2px; display:table-cell; vertical-align:middle;">
-                    <div id="elGbrainMinMax" style="font-weight:bold;cursor:pointer;">&#95;</div>
-                </div>
-            </div>
-            <div id="elGbrainContent" style="border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;	cursor:default;	padding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;">
-                <div style="display:inline-block;width:400px;">
-                    Loss
-                    <canvas id="elPlotLoss" style="background:#FFF"></canvas><br />
-                    Epsilon
-                    <canvas id="elPlotEpsilon" style="background:#FFF"></canvas><br />
-                    <button id="BTNID_PLOTMODE" style="display:inline-block;">Plot mode</button>
-                    <button id="BTNID_PLOTENABLE" style="display:inline-block;">Enable plot</button>
-                    <div id="el_info"></div>
-                    <div>
-                        Show weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
-                        Show weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/><br />
-                        Show output values<input title="input values" type="checkbox" checked="checked" id="elem_enableShowValues"/>
-                    </div>
-                    <button id="BTNID_SWEEPEPSILON" style="display:inline-block;">Sweep*reward epsilon</button>
-                    <button id="BTNID_STOP" style="display:inline-block;">Stop train</button>
-                    <button id="BTNID_RESUME" style="display:inline-block;">Resume train</button>
-                    <button id="BTNID_TOJSON" style="display:inline-block;">Output model in console</button>
-                    <button id="BTNID_TOLSJSON" style="display:inline-block;">Save model in LocalStorage</button>
-                    <button id="BTNID_FROMLSJSON" style="display:inline-block;">Load model from LocalStorage</button>
-                </div>
-                <div style="display:inline-block;">
-                    <div id="el_gbrainDisplay"></div>
-                </div>
-            </div>
-        </div>
-        `;
-        this.el_info = target.querySelector("#el_info");
-
-        target.querySelector("#BTNID_PLOTMODE").addEventListener("click", () => {
-            this.plotLoss.currentMode = (this.plotLoss.currentMode === 0) ? 1 : 0;
-            this.plotEpsilon.currentMode = (this.plotEpsilon.currentMode === 0) ? 1 : 0;
-        });
-        target.querySelector("#BTNID_PLOTENABLE").addEventListener("click", () => {
-            this.plotEnable = (this.plotEnable !== true);
-        });
-        target.querySelector("#elem_enableOutputWeighted").addEventListener("click", () => {
-            (this.showOutputWeighted === false) ? this.gbrain.enableShowOutputWeighted() : this.gbrain.disableShowOutputWeighted();
-            this.showOutputWeighted = !this.showOutputWeighted;
-        });
-        target.querySelector("#elem_enableWeightDynamics").addEventListener("click", () => {
-            (this.showWD === false) ? this.gbrain.enableShowWeightDynamics() : this.gbrain.disableShowWeightDynamics();
-            this.showWD = !this.showWD;
-        });
-        target.querySelector("#elem_enableShowValues").addEventListener("click", () => {
-            (this.showValues === false) ? this.gbrain.enableShowValues() : this.gbrain.disableShowValues();
-            this.showValues = !this.showValues;
-        });
-
-        target.querySelector("#BTNID_SWEEPEPSILON").addEventListener("click", () => {
-            this.sweepEnable = (this.sweepEnable !== true);
-        });
-
-        target.querySelector("#BTNID_STOP").addEventListener("click", () => {
-            this.stopLearning();
-        });
-
-        target.querySelector("#BTNID_RESUME").addEventListener("click", () => {
-            this.resumeLearning();
-        });
-
-        target.querySelector("#BTNID_TOJSON").addEventListener("click", () => {
-            this.toJson();
-        });
-
-        target.querySelector("#BTNID_TOLSJSON").addEventListener("click", () => {
-            localStorage.trainedModel = this.toJson();
-        });
-        target.querySelector("#BTNID_FROMLSJSON").addEventListener("click", () => {
-            this.fromJson(JSON.parse(localStorage.trainedModel));
-        });
-
-        target.querySelector("#elGbrainMinMax").addEventListener("click", () => {
-            if(this.windowEnabled === true) {
-                this.windowSavedPosLeft = target.style.left;
-                this.windowSavedPosTop = target.style.top;
-                target.style.position = "absolute";
-                target.style.left = "50";
-                target.style.top = "0";
-                target.style.width = "150px";
-                target.querySelector("#elGbrainContent").style.display = "none";
-                target.querySelector("#elGbrainMinMax").innerHTML = "&square;";
-                this.windowEnabled = false;
-            } else {
-                target.style.position = "relative";
-                target.style.left = this.windowSavedPosLeft;
-                target.style.top = this.windowSavedPosTop;
-                target.style.width = "950px";
-                target.querySelector("#elGbrainContent").style.display = "block";
-                target.querySelector("#elGbrainMinMax").innerHTML = "&#95;";
-                this.windowEnabled = true;
-            }
-        });
-
-        let dragg = new Draggabilly( target, {
-            handle: '#elGbrainWindowHandle'
-        });
-        target.style.left = (-target.getBoundingClientRect().left+100)+"px";
-        target.style.top = (-target.getBoundingClientRect().top+100)+"px";
-
-        this.avgLossWin = new AvgWin();
-
-        this.plotLoss = new Plot();
-        this.plotLossCanvas = target.querySelector("#elPlotLoss");
-
-        this.plotEpsilon = new Plot();
-        this.plotEpsilonCanvas = target.querySelector("#elPlotEpsilon");
-
-        this.clock = 0;
-
         if(jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) {
-            this.gbrain = new GBrain({  "target": target.querySelector("#el_gbrainDisplay"),
-                "dimensions": {"width": 500, "height": 500},
-                "enableUI": true,
-                "batch_repeats": jsonIn.batch_repeats,
-                "learning_rate": jsonIn.learning_rate});
+            this.gbrain = new GBrain({  "batch_repeats": jsonIn.batch_repeats,
+                                        "learning_rate": jsonIn.learning_rate,
+                                        "onStopLearning": this.stopLearning.bind(this),
+                                        "onResumeLearning": this.resumeLearning.bind(this),
+                                        "rlMode": this.learning});
             this.gbrain.makeLayers(jsonIn.layer_defs);
         }
     }
 
-    fromJson(jsonIn) {
-        this.gbrain.fromJson(jsonIn);
-    };
-
-    /**
-     * @returns {String}
-     */
-    toJson() {
-        return this.gbrain.toJson();
-    };
-
+    /** @private */
     getNetInput(iId, xt) {
         // return s = (x,a,x,a,x,a,xt) state vector.
         // It's a concatenation of last window_size (x,a) pairs and current state x
@@ -251,10 +111,12 @@ export class GBrainRL {
         return w;
     };
 
+    /** @private */
     random_action() {
         return Math.floor(Math.random()*this.num_actions);
     };
 
+    /** @private */
     policy(s, onP) {
         // compute the value of doing any action in this state
         // and return the argmax action and its value
@@ -263,6 +125,7 @@ export class GBrainRL {
         });
     };
 
+    /** @private */
     pushWindow(iId, input_array, net_input, action) {
         this.windows[iId].state_window.shift();
         this.windows[iId].state_window.push(input_array);
@@ -274,6 +137,7 @@ export class GBrainRL {
         this.windows[iId].action_window.push(action);
     };
 
+    /** @private */
     stopLearning() {
         this.learning = false;
         this.forward_passes = 0;
@@ -285,8 +149,11 @@ export class GBrainRL {
             this.windows[n].reward_window = new Array(this.window_size);
             this.windows[n].net_window = new Array(this.window_size);
         }
+
+        this.drawInfo();
     };
 
+    /** @private */
     resumeLearning() {
         this.learning = true;
         this.forward_passes = 0;
@@ -300,9 +167,28 @@ export class GBrainRL {
         }
     };
 
+    /** @private */
+    drawInfo() {
+        this.gbrain.el_info.innerHTML = "learning: "+this.learning+"<br />"+
+                                        "epsilon: "+this.epsilon+"<br />"+
+                                        "reward: "+this.latest_reward+"<br />"+
+                                        "clock: "+this.clock+"<br />"+
+                                        "age: "+this.gbrain.age+"<br />"+
+                                        "average Q-learning loss: "+this.loss+"<br />"+
+                                        "current learning rate: "+this.gbrain.currentLearningRate;
+    };
+
+    fromJson(jsonIn) {
+        this.gbrain.fromJson(jsonIn);
+    };
+
+    /**
+     * @param {Array<Array<number>>} input_array
+     * @param {Function} onAction
+     */
     forward(input_array, onAction) {
-        if(this.learning === true) {
-            this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
+        if(this.gbrain.learning === true) {
+            this.epsilon = Math.min(1.0, Math.max(this.epsilon_min, 1.0-(this.gbrain.age - this.learning_steps_burnin)/(this.learning_steps_total - this.learning_steps_burnin)));
             if(this.sweepEnable === true) {
                 if(this.sweep >= this.sweepMax)
                     this.sweepDir = -1;
@@ -364,33 +250,31 @@ export class GBrainRL {
         }
     };
 
+    /**
+     * @param {number} reward
+     * @param {Function} _onLearned
+     */
     backward(reward, _onLearned) {
         this.onLearned = _onLearned;
         this.latest_reward = reward;
 
         this.clock++;
-        this.el_info.innerHTML =  "epsilon: "+this.epsilon+"<br />"+
-            "reward: "+this.latest_reward+"<br />"+
-            "age: "+this.age+"<br />"+
-            "average Q-learning loss: "+this.loss+"<br />"+
-            "current learning rate: "+this.gbrain.currentLearningRate;
+        this.drawInfo();
 
-        if(this.learning === false) {
+        if(this.gbrain.learning === false) {
             this.onLearned();
         } else {
             //this.average_reward_window.add(reward); TODO
             this.windows[0].reward_window.shift();
             this.windows[0].reward_window.push(reward);
 
-            if(this.ageEpoch === this.experience_size) {
+            /*if(this.ageEpoch === this.experience_size) {
                 this.epoch++;
                 this.ageEpoch = 0;
                 let dec_rate = 1.0;
-                //this.gbrain.setLearningRate((1.0/(1.0+dec_rate*this.epoch))*this.gbrain.initialLearningRate);
+                this.gbrain.setLearningRate((1.0/(1.0+dec_rate*this.epoch))*this.gbrain.initialLearningRate);
             }
-            this.age++;
-            this.ageEpoch++;
-
+            this.ageEpoch++;*/
 
             // it is time t+1 and we have to store (s_t, a_t, r_t, s_{t+1}) as new experience
             // (given that an appropriate number of state measurements already exist, of course)
@@ -438,17 +322,16 @@ export class GBrainRL {
 
                         this.gbrain.forward(this.arrInputs, (data) => {
                             this.gbrain.train(this.arrTargets, (loss) => {
-
                                 this.loss = loss/(this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size);
-                                this.avgLossWin.add(Math.min(10.0, this.loss));
+                                this.gbrain.avgLossWin.add(Math.min(10.0, this.loss));
 
-                                this.plotLoss.add(this.clock, this.avgLossWin.get_average());
-                                if(this.plotEnable === true)
-                                    this.plotLoss.drawSelf(this.plotLossCanvas);
+                                this.gbrain.plotLoss.add(this.clock, this.gbrain.avgLossWin.get_average());
+                                if(this.gbrain.plotEnable === true)
+                                    this.gbrain.plotLoss.drawSelf(this.gbrain.plotLossCanvas);
 
-                                this.plotEpsilon.add(this.clock, this.epsilon);
-                                if(this.plotEnable === true)
-                                    this.plotEpsilon.drawSelf(this.plotEpsilonCanvas);
+                                this.gbrain.plotEpsilon.add(this.clock, this.epsilon);
+                                if(this.gbrain.plotEnable === true)
+                                    this.gbrain.plotEpsilon.drawSelf(this.gbrain.plotEpsilonCanvas);
 
                                 this.onLearned(this.loss);
                             });
