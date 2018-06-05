@@ -923,8 +923,8 @@ export class Graph {
      */
     createNeuronLayer(numX, numY, pos, nodSep, hasBias, isInput) {
         let arr = [];
-        for(let x=0; x < numX; x++) {
-            for(let y=0; y < numY; y++) {
+        for(let y=0; y < numY; y++) {
+            for(let x=0; x < numX; x++) {
                 let position = [pos[0]+((x-(numX/2))*nodSep), pos[1], pos[2]+((y-(numY/2))*nodSep), pos[3]];
 
                 if(isInput !== undefined && isInput !== null && isInput === 1) {
@@ -1089,7 +1089,7 @@ export class Graph {
      * @param {int} jsonIn.w
      * @param {Array<int>} jsonIn.neuronLayerOrigin
      * @param {Array<int>} jsonIn.neuronLayerTarget
-     * @param {number|null|Array<number>} [jsonIn.weight]
+     * @param {number|null|Array<number>} [jsonIn.weights]
      * @param {int} [jsonIn.layer_neurons_count]
      * @param {number} [jsonIn.multiplier=1.0]
      * @param {int} jsonIn.layerNum
@@ -1139,16 +1139,6 @@ export class Graph {
         let xO = 1;
         let yO = 1;
         for(let n=0; n < ((jsonIn.hasBias === 1.0) ? jsonIn.neuronLayerTarget.length-1 : jsonIn.neuronLayerTarget.length); n++) {
-            if(xT === jsonIn.w) {
-                xT = 0;
-                yT++;
-                xO = 1;
-                yO++;
-            } else {
-                xT++;
-                xO++;
-            }
-
             //let idT = (yT*jsonIn.w)+xT;
 
             let idConvM = 0;
@@ -1162,7 +1152,7 @@ export class Graph {
                     this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[idO].toString(),
                                         "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                                         "activationFunc": jsonIn.activationFunc,
-                                        "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[(n*9)+nb] : jsonIn.weight),
+                                        "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null && jsonIn.weights.constructor === Array) ? jsonIn.weights[(n*9)+nb] : jsonIn.weights),
                                         "layer_neurons_count": jsonIn.layer_neurons_count,
                                         "multiplier": convMatrix[jsonIn.convMatrixId][nb]+0.0001,
                                         "layerNum": jsonIn.layerNum,
@@ -1174,10 +1164,18 @@ export class Graph {
                 this.addSinapsis({  "neuronNameA": jsonIn.neuronLayerOrigin[jsonIn.neuronLayerOrigin.length-1].toString(),
                                     "neuronNameB": jsonIn.neuronLayerTarget[n].toString(),
                                     "activationFunc": jsonIn.activationFunc,
-                                    "weight": ((jsonIn.weight !== undefined && jsonIn.weight !== null && jsonIn.weight.constructor === Array) ? jsonIn.weight[n] : jsonIn.weight),
+                                    "weight": ((jsonIn.weights !== undefined && jsonIn.weights !== null && jsonIn.weights.constructor === Array) ? jsonIn.weights[n] : jsonIn.weights),
                                     "layer_neurons_count": jsonIn.layer_neurons_count,
                                     "multiplier": jsonIn.multiplier,
                                     "layerNum": jsonIn.layerNum});
+            }
+            xT++;
+            xO++;
+            if(xT === jsonIn.w) {
+                xT = 0;
+                yT++;
+                xO = 1;
+                yO++;
             }
         }
     };
@@ -1229,14 +1227,18 @@ export class Graph {
                         }
                     } else if(this.layer_defs[n].type === "conv") {
                         let convs = [];
+                        let cs = [];
                         for(let key in this._links) {
-                            if(this._links[key].target === this.layer_defs[n].neurons[p])
+                            let re = /^B/gi;
+                            if(this._links[key].target === this.layer_defs[n].neurons[p] && this._links[key].origin.match(re) === null) {
                                 convs[this._links[key].convId] = this.getPixelChild(this._links[key].target_nodeId, this._links[key].origin_nodeId)*4;
+                                cs[this._links[key].convId] = this._links[key].origin;
+                            }
                         }
 
                         let c_w = 0;
                         for(let nb=0; nb < convs.length; nb++) {
-                            lastL.filters[lastL.filters.length-1].w[c_w] = adjMA[convs[nb]+2]; // c+" "+p
+                            lastL.filters[lastL.filters.length-1].w[cs[nb]+" "+this.layer_defs[n].neurons[p]] = adjMA[convs[nb]+2]; // c+" "+p
                             c_w++;
                         }
                     }
