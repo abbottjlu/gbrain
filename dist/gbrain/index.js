@@ -5067,7 +5067,6 @@ var GBrainRL = exports.GBrainRL = function () {
      * @param {number} jsonIn.epsilon_min
      * @param {number} jsonIn.epsilon_test_time
      * @param {int} jsonIn.start_learn_threshold
-     * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {int} jsonIn.learning_steps_total
      * @param {int} jsonIn.learning_steps_burnin
@@ -5130,12 +5129,12 @@ var GBrainRL = exports.GBrainRL = function () {
         this.arrTargets = [];
 
         if (jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) {
-            this.gbrain = new _gbrain.GBrain({ "batch_repeats": jsonIn.batch_repeats,
+            this.gbrain = new _gbrain.GBrain({ "batch_repeats": 1,
                 "learning_rate": jsonIn.learning_rate,
+                "layer_defs": jsonIn.layer_defs,
                 "onStopLearning": this.stopLearning.bind(this),
                 "onResumeLearning": this.resumeLearning.bind(this),
                 "rlMode": this.learning });
-            this.gbrain.makeLayers(jsonIn.layer_defs);
         }
     }
 
@@ -5394,7 +5393,7 @@ var GBrainRL = exports.GBrainRL = function () {
                             }
 
                             _this2.gbrain.forward(_this2.arrInputs, function (data) {
-                                _this2.gbrain.train(_this2.arrTargets, function (loss) {
+                                _this2.gbrain.backward(_this2.arrTargets, function (loss) {
                                     _this2.loss = loss / (_this2.gbrain.graph.batch_repeats * _this2.gbrain.graph.gpu_batch_size);
                                     _this2.gbrain.avgLossWin.add(Math.min(10.0, _this2.loss));
 
@@ -5465,6 +5464,7 @@ var GBrain = exports.GBrain = function () {
      * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {WebGLRenderingContext} [jsonIn.gl=undefined]
+     * @param {Array<Object>} jsonIn.layer_defs
      * @param {Function} jsonIn.onStopLearning
      * @param {Function} jsonIn.onResumeLearning
      * @param {boolean} jsonIn.rlMode
@@ -5477,7 +5477,8 @@ var GBrain = exports.GBrain = function () {
             var _this = this;
 
             this.rlMode = jsonIn.rlMode !== undefined && jsonIn.rlMode !== null && jsonIn.rlMode === true;
-            this.learning = this.rlMode;
+
+            this.learning = true;
             this.age = 0;
 
             this.plotEnable = true;
@@ -5627,17 +5628,19 @@ var GBrain = exports.GBrain = function () {
             this.graph = new _Graph.Graph(this.sce, { "enableFonts": true });
             this.graph.enableNeuronalNetwork();
             this.graph.layerCount = 0;
-            this.outputCount = 0;
-            this.layerNodes = [];
-            this.graph.batch_repeats = jsonIn.batch_repeats;
+            this.graph.batch_repeats = jsonIn.batch_repeats !== undefined && jsonIn.batch_repeats !== null ? jsonIn.batch_repeats : 1;
             this.initialLearningRate = jsonIn.learning_rate;
             this.currentLearningRate = jsonIn.learning_rate;
-
             this.onStopLearning = jsonIn.onStopLearning;
             this.onResumeLearning = jsonIn.onResumeLearning;
 
+            this.outputCount = 0;
+            this.layerNodes = [];
+
             var mesh_point = new Mesh().loadPoint();
             //this.graph.setNodeMesh(mesh_point);
+
+            if (jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) this.makeLayers(jsonIn.layer_defs);
         }
     }, {
         key: "stopLearning",
@@ -5872,17 +5875,18 @@ var GBrain = exports.GBrain = function () {
             }
 
             this.sce.target.innerHTML = "";
+            var isLearning = this.learning;
             this.ini({ "target": this.sce.target,
                 "dimensions": this.sce.dimensions,
                 "batch_repeats": this.graph.batch_repeats,
                 "learning_rate": this.currentLearningRate,
                 "onStopLearning": this.onStopLearning,
                 "onResumeLearning": this.onResumeLearning,
-                "rlMode": this.rlMode
+                "rlMode": this.rlMode,
+                "layer_defs": layer_defs
             });
-            this.makeLayers(layer_defs);
 
-            if (this.rlMode === true && this.learning === false) this.stopLearning();
+            if (this.rlMode === true && isLearning === false) this.stopLearning();
         }
     }, {
         key: "toJson",
@@ -5911,14 +5915,14 @@ var GBrain = exports.GBrain = function () {
                 } });
         }
     }, {
-        key: "train",
+        key: "backward",
 
 
         /**
          * @param {Array<Object>} reward [{dim: actionId for the reward , val: number}]
          * @param {Function} onTrain
          */
-        value: function train(reward, onTrain) {
+        value: function backward(reward, onTrain) {
             this.age++;
             this.graph.train({ "reward": reward,
                 "onTrained": function onTrained(loss) {

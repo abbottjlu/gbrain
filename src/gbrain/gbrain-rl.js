@@ -19,7 +19,6 @@ export class GBrainRL {
      * @param {number} jsonIn.epsilon_min
      * @param {number} jsonIn.epsilon_test_time
      * @param {int} jsonIn.start_learn_threshold
-     * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {int} jsonIn.learning_steps_total
      * @param {int} jsonIn.learning_steps_burnin
@@ -80,12 +79,12 @@ export class GBrainRL {
         this.arrTargets = [];
 
         if(jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null) {
-            this.gbrain = new GBrain({  "batch_repeats": jsonIn.batch_repeats,
+            this.gbrain = new GBrain({  "batch_repeats": 1,
                                         "learning_rate": jsonIn.learning_rate,
+                                        "layer_defs": jsonIn.layer_defs,
                                         "onStopLearning": this.stopLearning.bind(this),
                                         "onResumeLearning": this.resumeLearning.bind(this),
                                         "rlMode": this.learning});
-            this.gbrain.makeLayers(jsonIn.layer_defs);
         }
     }
 
@@ -321,7 +320,7 @@ export class GBrainRL {
                         }
 
                         this.gbrain.forward(this.arrInputs, (data) => {
-                            this.gbrain.train(this.arrTargets, (loss) => {
+                            this.gbrain.backward(this.arrTargets, (loss) => {
                                 this.loss = loss/(this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size);
                                 this.gbrain.avgLossWin.add(Math.min(10.0, this.loss));
 

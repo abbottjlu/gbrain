@@ -20,13 +20,15 @@ export class GBrain {
      * @param {int} jsonIn.batch_repeats
      * @param {number} jsonIn.learning_rate
      * @param {WebGLRenderingContext} [jsonIn.gl=undefined]
+     * @param {Array<Object>} jsonIn.layer_defs
      * @param {Function} jsonIn.onStopLearning
      * @param {Function} jsonIn.onResumeLearning
      * @param {boolean} jsonIn.rlMode
      */
     ini(jsonIn) {
         this.rlMode = (jsonIn.rlMode !== undefined && jsonIn.rlMode !== null && jsonIn.rlMode === true);
-        this.learning = this.rlMode;
+
+        this.learning = true;
         this.age = 0;
 
         this.plotEnable = true;
@@ -216,18 +218,20 @@ export class GBrain {
         this.graph = new Graph(this.sce,{"enableFonts":true});
         this.graph.enableNeuronalNetwork();
         this.graph.layerCount = 0;
-        this.outputCount = 0;
-        this.layerNodes = [];
-        this.graph.batch_repeats = jsonIn.batch_repeats;
+        this.graph.batch_repeats = (jsonIn.batch_repeats !== undefined && jsonIn.batch_repeats !== null) ? jsonIn.batch_repeats : 1;
         this.initialLearningRate = jsonIn.learning_rate;
         this.currentLearningRate = jsonIn.learning_rate;
-
-
         this.onStopLearning = jsonIn.onStopLearning;
         this.onResumeLearning = jsonIn.onResumeLearning;
 
+        this.outputCount = 0;
+        this.layerNodes = [];
+
         let mesh_point = new Mesh().loadPoint();
         //this.graph.setNodeMesh(mesh_point);
+
+        if(jsonIn.layer_defs !== undefined && jsonIn.layer_defs !== null)
+            this.makeLayers(jsonIn.layer_defs);
     };
 
     stopLearning() {
@@ -472,17 +476,18 @@ export class GBrain {
         }
 
         this.sce.target.innerHTML = "";
+        let isLearning = this.learning;
         this.ini({  "target": this.sce.target,
                     "dimensions": this.sce.dimensions,
                     "batch_repeats": this.graph.batch_repeats,
                     "learning_rate": this.currentLearningRate,
                     "onStopLearning": this.onStopLearning,
                     "onResumeLearning": this.onResumeLearning,
-                    "rlMode": this.rlMode
+                    "rlMode": this.rlMode,
+                    "layer_defs": layer_defs
                     });
-        this.makeLayers(layer_defs);
 
-        if(this.rlMode === true && this.learning === false)
+        if(this.rlMode === true && isLearning === false)
             this.stopLearning();
     };
 
@@ -510,7 +515,7 @@ export class GBrain {
      * @param {Array<Object>} reward [{dim: actionId for the reward , val: number}]
      * @param {Function} onTrain
      */
-    train(reward, onTrain) {
+    backward(reward, onTrain) {
         this.age++;
         this.graph.train({  "reward": reward,
                             "onTrained": (loss) => {

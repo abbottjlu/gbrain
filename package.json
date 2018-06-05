@@ -1,6 +1,6 @@
 {
   "name": "gbrain",
-  "version": "0.1.524",
+  "version": "0.1.525",
   "description": "GPU Javascript Library for Machine Learning",
   "repository": {
     "type": "git",
