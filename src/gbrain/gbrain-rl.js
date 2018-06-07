@@ -52,7 +52,6 @@ export class GBrainRL {
 
         this.experience = [];
 
-        this.loss = 0.0;
         this.latest_reward = 0;
         this.learning = true;
 
@@ -149,7 +148,7 @@ export class GBrainRL {
             this.windows[n].net_window = new Array(this.window_size);
         }
 
-        this.drawInfo();
+        this.gbrain.el_infoRL.innerHTML = "epsilon: "+this.epsilon_test_time+"<br />";
     };
 
     /** @private */
@@ -168,13 +167,9 @@ export class GBrainRL {
 
     /** @private */
     drawInfo() {
-        this.gbrain.el_info.innerHTML = "learning: "+this.learning+"<br />"+
-                                        "epsilon: "+this.epsilon+"<br />"+
+        this.gbrain.el_infoRL.innerHTML = "epsilon: "+this.epsilon+"<br />"+
                                         "reward: "+this.latest_reward+"<br />"+
-                                        "clock: "+this.clock+"<br />"+
-                                        "age: "+this.gbrain.age+"<br />"+
-                                        "average Q-learning loss: "+this.loss+"<br />"+
-                                        "current learning rate: "+this.gbrain.currentLearningRate;
+                                        "clock: "+this.clock+"<br />";
     };
 
     fromJson(jsonIn) {
@@ -321,18 +316,11 @@ export class GBrainRL {
 
                         this.gbrain.forward(this.arrInputs, (data) => {
                             this.gbrain.backward(this.arrTargets, (loss) => {
-                                this.loss = loss/(this.gbrain.graph.batch_repeats*this.gbrain.graph.gpu_batch_size);
-                                this.gbrain.avgLossWin.add(Math.min(10.0, this.loss));
-
-                                this.gbrain.plotLoss.add(this.clock, this.gbrain.avgLossWin.get_average());
-                                if(this.gbrain.plotEnable === true)
-                                    this.gbrain.plotLoss.drawSelf(this.gbrain.plotLossCanvas);
-
-                                this.gbrain.plotEpsilon.add(this.clock, this.epsilon);
+                                this.gbrain.plotEpsilon.add(this.gbrain.age, this.epsilon);
                                 if(this.gbrain.plotEnable === true)
                                     this.gbrain.plotEpsilon.drawSelf(this.gbrain.plotEpsilonCanvas);
 
-                                this.onLearned(this.loss);
+                                this.onLearned(loss);
                             });
                         }, false);
                     });

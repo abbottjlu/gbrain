@@ -3078,10 +3078,7 @@ var Graph = exports.Graph = function () {
                         }for (var _nb2 = 0; _nb2 < _this5.efferentNodesCount; _nb2++) {
                             _this5.maxacts[_n9].sm[_nb2] = Math.exp(_this5.maxacts[_n9].values[_nb2]) / _sm;
 
-                            if (_nb2 === _this5.maxacts[_n9].action) {
-                                _this5.maxacts[_n9].value = _this5.maxacts[_n9].sm[_nb2];
-                                break;
-                            }
+                            if (_nb2 === _this5.maxacts[_n9].action) _this5.maxacts[_n9].value = _this5.maxacts[_n9].sm[_nb2];
                         }
                     }
                 }
@@ -3107,62 +3104,38 @@ var Graph = exports.Graph = function () {
 
             this.onTrained = jsonIn.onTrained;
 
-            // softmax regression
-            /*let cost = 0.0;
-            for(let n=0; n < this.maxacts.length; n++) {
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    //let rr = (jsonIn.reward[n].val >= 0) ? Math.exp(1.0) : Math.exp(-1);
-                    this.maxacts[n].y[nb] = (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb) ? jsonIn.reward[n].val/10 : 0.0;
-                }
-            }
-              for(let n=0; n < this.maxacts.length; n++) {
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    // cross-entropy cost
-                    cost += -1.0*((this.maxacts[n].y[nb]*Math.log(this.maxacts[n].sm[nb])) + ((1.0-this.maxacts[n].y[nb])*Math.log(1.0-this.maxacts[n].sm[nb])));
-                }
-            }
-              for(let n=0; n < this.maxacts.length; n++) {
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    // cross-entropy derivative (CED)
-                    this.maxacts[n].ced[nb] = ((this.maxacts[n].y[nb]*(1.0/this.maxacts[n].sm[nb])) + ((1.0-this.maxacts[n].y[nb])*(1.0/(1.0-this.maxacts[n].sm[nb]))));
-                }
-            }
-              for(let n=0; n < this.maxacts.length; n++) {
-                let sm = 0.0;
-                for(let nb=0; nb < this.efferentNodesCount; nb++)
-                    sm += Math.exp(this.maxacts[n].values[nb]);
-                sm = sm*sm;
-                  // softmax derivative
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    let sumOpposites = 0.0;
-                    for(let nc=0; nc < this.efferentNodesCount; nc++) {
-                        if(nb !== nc)
-                            sumOpposites += Math.exp(this.maxacts[n].values[nc]);
-                    }
-                    this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].values[nb])*sumOpposites)/sm;
-                }
-            }
-              let dd = [];
-            for(let n=0; n < this.maxacts.length; n++) {
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    let cc = this.maxacts[n].ced[nb]*this.maxacts[n].smd[nb];
-                    dd.push(cc);
-                }
-            }*/
-
-            // linear regression
             var cost = 0.0;
-            for (var n = 0; n < this.maxacts.length; n++) {
-                for (var nb = 0; nb < this.efferentNodesCount; nb++) {
-                    if (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb) {
-                        this.maxacts[n].y[nb] = jsonIn.reward[n].val;
-                        this.maxacts[n].o[nb] = -(this.maxacts[n].y[nb] - this.maxacts[n].values[nb]);
+            if (this.layer_defs[this.layer_defs.length - 1].type === "classification") {
+                // softmax
+                for (var n = 0; n < this.maxacts.length; n++) {
+                    for (var nb = 0; nb < this.efferentNodesCount; nb++) {
+                        this.maxacts[n].y[nb] = jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb ? jsonIn.reward[n].val : 0.0;
 
-                        // MSE
-                        cost += 0.5 * this.maxacts[n].o[nb] * this.maxacts[n].o[nb];
-                    } else {
-                        this.maxacts[n].y[nb] = 0.0;
-                        this.maxacts[n].o[nb] = 0.0;
+                        // cross-entropy
+                        //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
+                        var _o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])) - (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
+                        this.maxacts[n].o[nb] = _o;
+
+                        // cross-entropy cost
+                        cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]) + (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
+                    }
+                }
+            } else if (this.layer_defs[this.layer_defs.length - 1].type === "regression") {
+                // linear regression
+                for (var _n10 = 0; _n10 < this.maxacts.length; _n10++) {
+                    for (var _nb3 = 0; _nb3 < this.efferentNodesCount; _nb3++) {
+                        if (jsonIn.reward[_n10] !== undefined && jsonIn.reward[_n10].dim === _nb3) {
+                            this.maxacts[_n10].y[_nb3] = jsonIn.reward[_n10].val;
+
+                            // MSE
+                            this.maxacts[_n10].o[_nb3] = -(this.maxacts[_n10].y[_nb3] - this.maxacts[_n10].values[_nb3]);
+
+                            // MSE cost
+                            cost += 0.5 * this.maxacts[_n10].o[_nb3] * this.maxacts[_n10].o[_nb3];
+                        } else {
+                            this.maxacts[_n10].y[_nb3] = 0.0;
+                            this.maxacts[_n10].o[_nb3] = 0.0;
+                        }
                     }
                 }
             }
@@ -3192,16 +3165,16 @@ var Graph = exports.Graph = function () {
 
             var _loop2 = function _loop2(r) {
                 var dd = [];
-                for (var _n10 = 0; _n10 < _this6.gpu_batch_size; _n10++) {
-                    for (var _nb3 = 0; _nb3 < _this6.efferentNodesCount; _nb3++) {
-                        var cc = _this6.maxacts[cr].o[_nb3];
+                for (var _n11 = 0; _n11 < _this6.gpu_batch_size; _n11++) {
+                    for (var _nb4 = 0; _nb4 < _this6.efferentNodesCount; _nb4++) {
+                        var cc = _this6.maxacts[cr].o[_nb4];
                         dd.push(cc);
                     }
                     cr++;
                 }
                 // send
-                for (var _n11 = 0; _n11 < _this6.gpu_batch_size; _n11++) {
-                    _this6.comp_renderer_nodes.setArg("efferentNodes" + _this6.lett[_n11], function () {
+                for (var _n12 = 0; _n12 < _this6.gpu_batch_size; _n12++) {
+                    _this6.comp_renderer_nodes.setArg("efferentNodes" + _this6.lett[_n12], function () {
                         return dd.slice(0, _this6.efferentNodesCount);
                     });
                     dd = dd.slice(_this6.efferentNodesCount);
@@ -3209,9 +3182,9 @@ var Graph = exports.Graph = function () {
 
                 _this6.comp_renderer_nodes.gpufG.processKernel(_this6.comp_renderer_nodes.gpufG.kernels[0], true, true);
 
-                var _loop3 = function _loop3(_n12) {
+                var _loop3 = function _loop3(_n13) {
                     _this6.comp_renderer_nodes.setArg("currentTrainLayer", function () {
-                        return _n12;
+                        return _n13;
                     });
 
                     _this6.comp_renderer_nodes.gpufG.processKernel(_this6.comp_renderer_nodes.gpufG.kernels[0], true, true);
@@ -3230,8 +3203,8 @@ var Graph = exports.Graph = function () {
                     });
                 };
 
-                for (var _n12 = _this6.layerCount - 2; _n12 >= 0; _n12--) {
-                    _loop3(_n12);
+                for (var _n13 = _this6.layerCount - 2; _n13 >= 0; _n13--) {
+                    _loop3(_n13);
                 }
             };
 
@@ -3239,6 +3212,7 @@ var Graph = exports.Graph = function () {
                 _loop2(r);
             }
 
+            if (this.layer_defs[this.layer_defs.length - 1].type === "classification") cost = -cost;
             if (this.onTrained !== null) this.onTrained(cost);
         }
     }, {
@@ -3365,11 +3339,11 @@ var Graph = exports.Graph = function () {
 
             // link id
             for (var na = 0; na < this.linksObj.length; na++) {
-                for (var _n13 = 0; _n13 < this.linksObj[na].arrayLinkData.length / 4; _n13++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.linksObj[na].arrayLinkData[_n13 * 4] === node.nodeId) setVal(type, jsonIn.argName, "links_array_value", _n13, jsonIn.value);else {
-                        var _id2 = type === "float" ? _n13 : _n13 * 4;
+                for (var _n14 = 0; _n14 < this.linksObj[na].arrayLinkData.length / 4; _n14++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.linksObj[na].arrayLinkData[_n14 * 4] === node.nodeId) setVal(type, jsonIn.argName, "links_array_value", _n14, jsonIn.value);else {
+                        var _id2 = type === "float" ? _n14 : _n14 * 4;
                         if (this._customArgs[jsonIn.argName]["links_array_value"][_id2] === undefined && this._customArgs[jsonIn.argName]["links_array_value"][_id2] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "links_array_value", _n13, 0.0);else setVal(type, jsonIn.argName, "links_array_value", _n13, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "links_array_value", _n14, 0.0);else setVal(type, jsonIn.argName, "links_array_value", _n14, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3380,11 +3354,11 @@ var Graph = exports.Graph = function () {
 
             // arrow id
             for (var _na9 = 0; _na9 < this.arrowsObj.length; _na9++) {
-                for (var _n14 = 0; _n14 < this.arrowsObj[_na9].arrayArrowData.length / 4; _n14++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrowsObj[_na9].arrayArrowData[_n14 * 4] === node.nodeId) setVal(type, jsonIn.argName, "arrows_array_value", _n14, jsonIn.value);else {
-                        var _id3 = type === "float" ? _n14 : _n14 * 4;
+                for (var _n15 = 0; _n15 < this.arrowsObj[_na9].arrayArrowData.length / 4; _n15++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrowsObj[_na9].arrayArrowData[_n15 * 4] === node.nodeId) setVal(type, jsonIn.argName, "arrows_array_value", _n15, jsonIn.value);else {
+                        var _id3 = type === "float" ? _n15 : _n15 * 4;
                         if (this._customArgs[jsonIn.argName]["arrows_array_value"][_id3] === undefined && this._customArgs[jsonIn.argName]["arrows_array_value"][_id3] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "arrows_array_value", _n14, 0.0);else setVal(type, jsonIn.argName, "arrows_array_value", _n14, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "arrows_array_value", _n15, 0.0);else setVal(type, jsonIn.argName, "arrows_array_value", _n15, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3395,11 +3369,11 @@ var Graph = exports.Graph = function () {
 
             if (this._enableFont === true) {
                 // nodeText id
-                for (var _n15 = 0; _n15 < this.arrayNodeTextData.length / 4; _n15++) {
-                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrayNodeTextData[_n15 * 4] === node.nodeId) setVal(type, jsonIn.argName, "nodestext_array_value", _n15, jsonIn.value);else {
-                        var _id4 = type === "float" ? _n15 : _n15 * 4;
+                for (var _n16 = 0; _n16 < this.arrayNodeTextData.length / 4; _n16++) {
+                    if (jsonIn.nodeName === undefined || jsonIn.nodeName === null || jsonIn.nodeName !== undefined && jsonIn.nodeName !== null && this.arrayNodeTextData[_n16 * 4] === node.nodeId) setVal(type, jsonIn.argName, "nodestext_array_value", _n16, jsonIn.value);else {
+                        var _id4 = type === "float" ? _n16 : _n16 * 4;
                         if (this._customArgs[jsonIn.argName]["nodestext_array_value"][_id4] === undefined && this._customArgs[jsonIn.argName]["nodestext_array_value"][_id4] === null && jsonIn.update === false) {
-                            if (type === "float") setVal(type, jsonIn.argName, "nodestext_array_value", _n15, 0.0);else setVal(type, jsonIn.argName, "nodestext_array_value", _n15, [0.0, 0.0, 0.0, 0.0]);
+                            if (type === "float") setVal(type, jsonIn.argName, "nodestext_array_value", _n16, 0.0);else setVal(type, jsonIn.argName, "nodestext_array_value", _n16, [0.0, 0.0, 0.0, 0.0]);
                         }
                     }
                 }
@@ -3455,8 +3429,8 @@ var Graph = exports.Graph = function () {
             // links
             this._customArgs[jsonIn.argName].links_array_value = [];
             for (var na = 0; na < this.linksObj.length; na++) {
-                for (var _n16 = 0; _n16 < this.linksObj[na].arrayLinkNodeName.length; _n16++) {
-                    var currentLinkNodeName = this.linksObj[na].arrayLinkNodeName[_n16];
+                for (var _n17 = 0; _n17 < this.linksObj[na].arrayLinkNodeName.length; _n17++) {
+                    var currentLinkNodeName = this.linksObj[na].arrayLinkNodeName[_n17];
                     var nodeNameItemStart = this._nodesByName[currentLinkNodeName].itemStart;
 
                     if (type === "float") {
@@ -3473,8 +3447,8 @@ var Graph = exports.Graph = function () {
             // arrows
             this._customArgs[jsonIn.argName].arrows_array_value = [];
             for (var _na10 = 0; _na10 < this.arrowsObj.length; _na10++) {
-                for (var _n17 = 0; _n17 < this.arrowsObj[_na10].arrayArrowNodeName.length; _n17++) {
-                    var currentArrowNodeName = this.arrowsObj[_na10].arrayArrowNodeName[_n17];
+                for (var _n18 = 0; _n18 < this.arrowsObj[_na10].arrayArrowNodeName.length; _n18++) {
+                    var currentArrowNodeName = this.arrowsObj[_na10].arrayArrowNodeName[_n18];
                     var _nodeNameItemStart = this._nodesByName[currentArrowNodeName].itemStart;
 
                     if (type === "float") {
@@ -3491,8 +3465,8 @@ var Graph = exports.Graph = function () {
             // nodestext
             if (this._enableFont === true) {
                 this._customArgs[jsonIn.argName].nodestext_array_value = [];
-                for (var _n18 = 0; _n18 < this.arrayNodeTextNodeName.length; _n18++) {
-                    var currentNodeTextNodeName = this.arrayNodeTextNodeName[_n18];
+                for (var _n19 = 0; _n19 < this.arrayNodeTextNodeName.length; _n19++) {
+                    var currentNodeTextNodeName = this.arrayNodeTextNodeName[_n19];
                     var _nodeNameItemStart2 = this._nodesByName[currentNodeTextNodeName].itemStart;
 
                     if (type === "float") {
@@ -3610,8 +3584,8 @@ var Graph = exports.Graph = function () {
             }
 
             var maxNodeIndexId = 0;
-            for (var _n19 = 0; _n19 < this.mesh_nodes.indexArray.length; _n19++) {
-                var idxIndex = _n19;
+            for (var _n20 = 0; _n20 < this.mesh_nodes.indexArray.length; _n20++) {
+                var idxIndex = _n20;
 
                 this.arrayNodeIndices.push(this.startIndexId + this.mesh_nodes.indexArray[idxIndex]);
 
@@ -3674,8 +3648,8 @@ var Graph = exports.Graph = function () {
             }
             var maxNodeIndexId = 0;
             for (var _i = 0; _i < this.nodesTextPlanes; _i++) {
-                for (var _n20 = 0; _n20 < this.mesh_nodesText.indexArray.length; _n20++) {
-                    var idxIndex = _n20;
+                for (var _n21 = 0; _n21 < this.mesh_nodesText.indexArray.length; _n21++) {
+                    var idxIndex = _n21;
 
                     var b = _i * 4; // 4 = indices length of quad (0, 1, 2, 0, 2, 3)
                     var ii = this.mesh_nodesText.indexArray[idxIndex] + b;
@@ -3863,7 +3837,7 @@ var Graph = exports.Graph = function () {
                 }
             }
 
-            for (var _n21 = 0; _n21 < this.lineVertexCount * 2; _n21++) {
+            for (var _n22 = 0; _n22 < this.lineVertexCount * 2; _n22++) {
                 this.linksObj[this.currentLinksObjItem].arrayLinkIndices.push(this.linksObj[this.currentLinksObjItem].startIndexId_link++);
             }this.currentLinkId += 2; // augment link id
 
@@ -3896,16 +3870,16 @@ var Graph = exports.Graph = function () {
 
             var oppositeId = 0;
 
-            for (var _o = 0; _o < 2; _o++) {
+            for (var _o2 = 0; _o2 < 2; _o2++) {
                 for (var n = 0; n < this.mesh_arrows.vertexArray.length / 4; n++) {
                     var idxVertex = n * 4;
-                    if (_o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
+                    if (_o2 === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowPosXYZW.push(0.0, 0.0, 0.0, 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexPos.push(this.mesh_arrows.vertexArray[idxVertex], this.mesh_arrows.vertexArray[idxVertex + 1], this.mesh_arrows.vertexArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex + 1], this.mesh_arrows.normalArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex + 1], this.mesh_arrows.textureArray[idxVertex + 2], 1.0);
-                    if (_o === 0) {
+                    if (_o2 === 0) {
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.convId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                         if (jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
@@ -3939,8 +3913,8 @@ var Graph = exports.Graph = function () {
                 }
 
                 var maxArrowIndexId = 0;
-                for (var _n22 = 0; _n22 < this.mesh_arrows.indexArray.length; _n22++) {
-                    var idxIndex = _n22;
+                for (var _n23 = 0; _n23 < this.mesh_arrows.indexArray.length; _n23++) {
+                    var idxIndex = _n23;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowIndices.push(this.arrowsObj[this.currentArrowsObjItem].startIndexId_arrow + this.mesh_arrows.indexArray[idxIndex]);
 
@@ -5102,7 +5076,6 @@ var GBrainRL = exports.GBrainRL = function () {
 
         this.experience = [];
 
-        this.loss = 0.0;
         this.latest_reward = 0;
         this.learning = true;
 
@@ -5215,7 +5188,7 @@ var GBrainRL = exports.GBrainRL = function () {
                 this.windows[n].net_window = new Array(this.window_size);
             }
 
-            this.drawInfo();
+            this.gbrain.el_infoRL.innerHTML = "epsilon: " + this.epsilon_test_time + "<br />";
         }
     }, {
         key: "resumeLearning",
@@ -5240,7 +5213,7 @@ var GBrainRL = exports.GBrainRL = function () {
 
         /** @private */
         value: function drawInfo() {
-            this.gbrain.el_info.innerHTML = "learning: " + this.learning + "<br />" + "epsilon: " + this.epsilon + "<br />" + "reward: " + this.latest_reward + "<br />" + "clock: " + this.clock + "<br />" + "age: " + this.gbrain.age + "<br />" + "average Q-learning loss: " + this.loss + "<br />" + "current learning rate: " + this.gbrain.currentLearningRate;
+            this.gbrain.el_infoRL.innerHTML = "epsilon: " + this.epsilon + "<br />" + "reward: " + this.latest_reward + "<br />" + "clock: " + this.clock + "<br />";
         }
     }, {
         key: "fromJson",
@@ -5394,16 +5367,10 @@ var GBrainRL = exports.GBrainRL = function () {
 
                             _this2.gbrain.forward(_this2.arrInputs, function (data) {
                                 _this2.gbrain.backward(_this2.arrTargets, function (loss) {
-                                    _this2.loss = loss / (_this2.gbrain.graph.batch_repeats * _this2.gbrain.graph.gpu_batch_size);
-                                    _this2.gbrain.avgLossWin.add(Math.min(10.0, _this2.loss));
-
-                                    _this2.gbrain.plotLoss.add(_this2.clock, _this2.gbrain.avgLossWin.get_average());
-                                    if (_this2.gbrain.plotEnable === true) _this2.gbrain.plotLoss.drawSelf(_this2.gbrain.plotLossCanvas);
-
-                                    _this2.gbrain.plotEpsilon.add(_this2.clock, _this2.epsilon);
+                                    _this2.gbrain.plotEpsilon.add(_this2.gbrain.age, _this2.epsilon);
                                     if (_this2.gbrain.plotEnable === true) _this2.gbrain.plotEpsilon.drawSelf(_this2.gbrain.plotEpsilonCanvas);
 
-                                    _this2.onLearned(_this2.loss);
+                                    _this2.onLearned(loss);
                                 });
                             }, false);
                         });
@@ -5480,6 +5447,7 @@ var GBrain = exports.GBrain = function () {
 
             this.learning = true;
             this.age = 0;
+            this.loss = 0;
 
             this.plotEnable = true;
 
@@ -5512,8 +5480,9 @@ var GBrain = exports.GBrain = function () {
             }
             target.id = "elGBrainPanel";
             target.style.width = "950px";
-            target.innerHTML = "\n        <div style=\"font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;\">\n            <div id=\"elGbrainWindowHandle\" style=\"border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;\tdisplay:table;\">\n                <div style=\"padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;\">GBrain</div>\n                <div style=\"width:22px;\tpadding:2px; display:table-cell; vertical-align:middle;\">\n                    <div id=\"elGbrainMinMax\" style=\"font-weight:bold;cursor:pointer;\">&#95;</div>\n                </div>\n            </div>\n            <div id=\"elGbrainContent\" style=\"border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;\tcursor:default;\tpadding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;\">\n                <div style=\"display:inline-block;width:400px;vertical-align:top;\">\n                    Loss\n                    <canvas id=\"elPlotLoss\" style=\"background:#FFF\"></canvas><br />\n                    " + epsilonStr(this.rlMode) + "\n                    <button id=\"BTNID_PLOTMODE\" style=\"display:inline-block;\">Plot mode</button>\n                    <button id=\"BTNID_PLOTENABLE\" style=\"display:inline-block;\">Enable plot</button>\n                    <div id=\"el_info\"></div>\n                    <div>\n                        Show weight*neuron output<input title=\"weight*output\" type=\"checkbox\" id=\"elem_enableOutputWeighted\"/><br />\n                        Show weight dynamics<input title=\"weight dynamics\" type=\"checkbox\" id=\"elem_enableWeightDynamics\"/><br />\n                        Show output values<input title=\"input values\" type=\"checkbox\" checked=\"checked\" id=\"elem_enableShowValues\"/>\n                    </div>\n                    " + rlStr(this.rlMode) + "\n                    <button id=\"BTNID_TOJSON\" style=\"width:120px;display:inline-block;\">Output model in console</button>\n                    <button id=\"BTNID_TOLSJSON\" style=\"width:120px;display:inline-block;\">Save model in LocalStorage</button>\n                    <button id=\"BTNID_FROMLSJSON\" style=\"width:120px;display:inline-block;\">Load model from LocalStorage</button>\n                </div>\n                <div style=\"display:inline-block;\">\n                    <div id=\"el_gbrainDisplay\"></div>\n                </div>\n            </div>\n        </div>\n        ";
+            target.innerHTML = "\n        <div style=\"font-size:12px; box-shadow:rgba(0, 0, 0, 0.683594) 3px 3px 8px 1px,rgb(255, 255, 255) 0 0 5px 0 inset; border-radius:5px;\">\n            <div id=\"elGbrainWindowHandle\" style=\"border-top-left-radius:5px; border-top-right-radius:5px; width:100%; background:rgba(200,200,200,0.7); cursor:move;\tdisplay:table;\">\n                <div style=\"padding-left:5px;color:#000;font-weight:bold;display:table-cell;vertical-align:middle;\">GBrain</div>\n                <div style=\"width:22px;\tpadding:2px; display:table-cell; vertical-align:middle;\">\n                    <div id=\"elGbrainMinMax\" style=\"font-weight:bold;cursor:pointer;\">&#95;</div>\n                </div>\n            </div>\n            <div id=\"elGbrainContent\" style=\"border-bottom-left-radius:5px; border-bottom-right-radius:5px; min-width:220px;\tcursor:default;\tpadding:5px; color:#FFF; background:rgba(50,50,50,0.95); overflow-y:auto;\">\n                <div style=\"display:inline-block;width:400px;vertical-align:top;\">\n                    Loss\n                    <canvas id=\"elPlotLoss\" style=\"background:#FFF\"></canvas><br />\n                    " + epsilonStr(this.rlMode) + "\n                    <button id=\"BTNID_PLOTMODE\" style=\"display:inline-block;\">Plot mode</button>\n                    <button id=\"BTNID_PLOTENABLE\" style=\"display:inline-block;\">Enable plot</button>\n                    <div id=\"el_info\"></div>\n                    <div id=\"el_infoRL\"></div>\n                    <div>\n                        Show weight*neuron output<input title=\"weight*output\" type=\"checkbox\" id=\"elem_enableOutputWeighted\"/><br />\n                        Show weight dynamics<input title=\"weight dynamics\" type=\"checkbox\" id=\"elem_enableWeightDynamics\"/><br />\n                        Show output values<input title=\"input values\" type=\"checkbox\" checked=\"checked\" id=\"elem_enableShowValues\"/>\n                    </div>\n                    " + rlStr(this.rlMode) + "\n                    <button id=\"BTNID_TOJSON\" style=\"width:120px;display:inline-block;\">Output model in console</button>\n                    <button id=\"BTNID_TOLSJSON\" style=\"width:120px;display:inline-block;\">Save model in LocalStorage</button>\n                    <button id=\"BTNID_FROMLSJSON\" style=\"width:120px;display:inline-block;\">Load model from LocalStorage</button>\n                </div>\n                <div style=\"display:inline-block;\">\n                    <div id=\"el_gbrainDisplay\"></div>\n                </div>\n            </div>\n        </div>\n        ";
             this.el_info = target.querySelector("#el_info");
+            this.el_infoRL = target.querySelector("#el_infoRL");
 
             target.querySelector("#BTNID_PLOTMODE").addEventListener("click", function () {
                 _this.plotLoss.currentMode = _this.plotLoss.currentMode === 0 ? 1 : 0;
@@ -5602,6 +5571,7 @@ var GBrain = exports.GBrain = function () {
             // SCEJS
             ////////////////////////////////////////////
             jsonIn.target = target.querySelector("#el_gbrainDisplay");
+            jsonIn.target.style.border = "2px dashed #999";
             jsonIn.dimensions = { "width": 500, "height": 500 };
             jsonIn.enableUI = true;
 
@@ -5612,6 +5582,7 @@ var GBrain = exports.GBrain = function () {
             this.sce.loadProject(this.project);
 
             var stage = new Stage();
+            stage.setBackgroundColor([0.0025, 0.0025, 0.0025, 0.095]);
             this.project.addStage(stage);
             this.project.setActiveStage(stage);
 
@@ -5646,6 +5617,7 @@ var GBrain = exports.GBrain = function () {
         key: "stopLearning",
         value: function stopLearning() {
             this.learning = false;
+            this.drawInfo();
             this.onStopLearning();
         }
     }, {
@@ -5923,11 +5895,29 @@ var GBrain = exports.GBrain = function () {
          * @param {Function} onTrain
          */
         value: function backward(reward, onTrain) {
+            var _this3 = this;
+
             this.age++;
             this.graph.train({ "reward": reward,
                 "onTrained": function onTrained(loss) {
+                    _this3.loss = loss / (_this3.graph.batch_repeats * _this3.graph.gpu_batch_size);
+                    _this3.drawInfo();
+
+                    _this3.avgLossWin.add(Math.min(10.0, _this3.loss));
+
+                    _this3.plotLoss.add(_this3.age, _this3.avgLossWin.get_average());
+                    if (_this3.plotEnable === true) _this3.plotLoss.drawSelf(_this3.plotLossCanvas);
+
                     onTrain(loss);
                 } });
+        }
+    }, {
+        key: "drawInfo",
+
+
+        /** @private */
+        value: function drawInfo() {
+            this.el_info.innerHTML = "learning: " + this.learning + "<br />" + "age: " + this.age + "<br />" + "average Q-learning loss: " + this.loss + "<br />" + "current learning rate: " + this.currentLearningRate + "<br />";
         }
     }, {
         key: "setLearningRate",

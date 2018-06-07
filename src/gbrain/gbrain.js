@@ -30,6 +30,7 @@ export class GBrain {
 
         this.learning = true;
         this.age = 0;
+        this.loss = 0;
 
         this.plotEnable = true;
 
@@ -87,6 +88,7 @@ export class GBrain {
                     <button id="BTNID_PLOTMODE" style="display:inline-block;">Plot mode</button>
                     <button id="BTNID_PLOTENABLE" style="display:inline-block;">Enable plot</button>
                     <div id="el_info"></div>
+                    <div id="el_infoRL"></div>
                     <div>
                         Show weight*neuron output<input title="weight*output" type="checkbox" id="elem_enableOutputWeighted"/><br />
                         Show weight dynamics<input title="weight dynamics" type="checkbox" id="elem_enableWeightDynamics"/><br />
@@ -104,6 +106,7 @@ export class GBrain {
         </div>
         `;
         this.el_info = target.querySelector("#el_info");
+        this.el_infoRL = target.querySelector("#el_infoRL");
 
         target.querySelector("#BTNID_PLOTMODE").addEventListener("click", () => {
             this.plotLoss.currentMode = (this.plotLoss.currentMode === 0) ? 1 : 0;
@@ -192,6 +195,7 @@ export class GBrain {
         // SCEJS
         ////////////////////////////////////////////
         jsonIn.target = target.querySelector("#el_gbrainDisplay");
+        jsonIn.target.style.border = "2px dashed #999";
         jsonIn.dimensions = {"width": 500, "height": 500};
         jsonIn.enableUI = true;
 
@@ -202,6 +206,7 @@ export class GBrain {
         this.sce.loadProject(this.project);
 
         let stage = new Stage();
+        stage.setBackgroundColor([0.0025,0.0025,0.0025,0.095]);
         this.project.addStage(stage);
         this.project.setActiveStage(stage);
 
@@ -236,6 +241,7 @@ export class GBrain {
 
     stopLearning() {
         this.learning = false;
+        this.drawInfo();
         this.onStopLearning();
     };
 
@@ -519,8 +525,25 @@ export class GBrain {
         this.age++;
         this.graph.train({  "reward": reward,
                             "onTrained": (loss) => {
+                                this.loss = loss/(this.graph.batch_repeats*this.graph.gpu_batch_size);
+                                this.drawInfo();
+
+                                this.avgLossWin.add(Math.min(10.0, this.loss));
+
+                                this.plotLoss.add(this.age, this.avgLossWin.get_average());
+                                if(this.plotEnable === true)
+                                    this.plotLoss.drawSelf(this.plotLossCanvas);
+
                                 onTrain(loss);
                             }});
+    };
+
+    /** @private */
+    drawInfo() {
+        this.el_info.innerHTML = "learning: "+this.learning+"<br />"+
+                                "age: "+this.age+"<br />"+
+                                "average Q-learning loss: "+this.loss+"<br />"+
+                                "current learning rate: "+this.currentLearningRate+"<br />";
     };
 
     setLearningRate(v) {

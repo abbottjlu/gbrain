@@ -46,8 +46,8 @@
             var inputW = 16;
             var inputH = 16;
 
-            var num_inputs = inputW*inputH; // 9 eyes, each sees 3 numbers (wall, green, red thing proximity)
-            var num_actions = 2; // 5 possible angles agent can turn
+            var num_inputs = inputW*inputH;
+            var num_actions = 2;
             var layer_defs = [];
             layer_defs.push({"type": "input", "out_sx": inputW, "out_sy": inputH});
             layer_defs.push({"type": "conv", "activation": "relu"});
@@ -58,7 +58,7 @@
             var gbrain = new GBrain({
                 "num_inputs": num_inputs,
                 "num_actions": num_actions,
-                "learning_rate": 0.01, // 0.001 0.0005
+                "learning_rate": 0.003, // 0.001 0.0005
                 "layer_defs": layer_defs});
 
             //gbrain.stopLearning();
@@ -94,7 +94,7 @@
             document.getElementById("BTNID_EFFERENCEDATA0").addEventListener("click", (function() {
                 elem_fgColor.innerHTML += "<br />train animal";
 
-                let rew = (hy === 0) ? [{dim: 0, val: 1.0}] : [{dim: 1, val: -1.0}];
+                let rew = [{dim: 1, val: 1.0}];
                 gbrain.backward(rew, (function (loss) {
                     loadImg();
                 }).bind(this));
@@ -102,7 +102,7 @@
             document.getElementById("BTNID_EFFERENCEDATA1").addEventListener("click", (function() {
                 elem_fgColor.innerHTML += "<br />train house";
 
-                let rew = (hy === 1) ? [{dim: 1, val: 1.0}] : [{dim: 0, val: -1.0}];
+                let rew = [{dim: 0, val: 1.0}];
                 gbrain.backward(rew, (function (loss) {
                     loadImg();
                 }).bind(this));
@@ -131,14 +131,14 @@
                 }
 
                 gbrain.forward(ad, function(data) {
-                    console.log("action: "+data[0]);
+                    console.log("action: "+data[0].action);
 
-                    if(data[0] === 1)
-                        elem_fgColor.innerHTML += "<br />predicted: animal";
-                    else if(data[0] === 0)
+                    if(data[0].action === 0)
                         elem_fgColor.innerHTML += "<br />predicted: house";
+                    else if(data[0].action === 1)
+                        elem_fgColor.innerHTML += "<br />predicted: animal";
 
-                    hy = data[0];
+                    hy = data[0].action;
 
                     (idu === 0)
                         ? document.getElementById("BTNID_EFFERENCEDATA0").click()

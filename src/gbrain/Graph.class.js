@@ -1369,10 +1369,8 @@ export class Graph {
                     for(let nb=0; nb < this.efferentNodesCount; nb++) {
                         this.maxacts[n].sm[nb] = Math.exp(this.maxacts[n].values[nb])/sm;
 
-                        if(nb === this.maxacts[n].action) {
+                        if(nb === this.maxacts[n].action)
                             this.maxacts[n].value = this.maxacts[n].sm[nb];
-                            break;
-                        }
                     }
                 }
             }
@@ -1390,73 +1388,43 @@ export class Graph {
     train(jsonIn) {
         this.onTrained = jsonIn.onTrained;
 
-        // softmax regression
-        /*let cost = 0.0;
-        for(let n=0; n < this.maxacts.length; n++) {
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                //let rr = (jsonIn.reward[n].val >= 0) ? Math.exp(1.0) : Math.exp(-1);
-                this.maxacts[n].y[nb] = (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb) ? jsonIn.reward[n].val/10 : 0.0;
-            }
-        }
-
-        for(let n=0; n < this.maxacts.length; n++) {
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                // cross-entropy cost
-                cost += -1.0*((this.maxacts[n].y[nb]*Math.log(this.maxacts[n].sm[nb])) + ((1.0-this.maxacts[n].y[nb])*Math.log(1.0-this.maxacts[n].sm[nb])));
-            }
-        }
-
-        for(let n=0; n < this.maxacts.length; n++) {
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                // cross-entropy derivative (CED)
-                this.maxacts[n].ced[nb] = ((this.maxacts[n].y[nb]*(1.0/this.maxacts[n].sm[nb])) + ((1.0-this.maxacts[n].y[nb])*(1.0/(1.0-this.maxacts[n].sm[nb]))));
-            }
-        }
-
-        for(let n=0; n < this.maxacts.length; n++) {
-            let sm = 0.0;
-            for(let nb=0; nb < this.efferentNodesCount; nb++)
-                sm += Math.exp(this.maxacts[n].values[nb]);
-            sm = sm*sm;
-
-            // softmax derivative
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                let sumOpposites = 0.0;
-                for(let nc=0; nc < this.efferentNodesCount; nc++) {
-                    if(nb !== nc)
-                        sumOpposites += Math.exp(this.maxacts[n].values[nc]);
-                }
-                this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].values[nb])*sumOpposites)/sm;
-            }
-        }
-
-        let dd = [];
-        for(let n=0; n < this.maxacts.length; n++) {
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                let cc = this.maxacts[n].ced[nb]*this.maxacts[n].smd[nb];
-                dd.push(cc);
-            }
-        }*/
-
-
-
-        // linear regression
         let cost = 0.0;
-        for(let n=0; n < this.maxacts.length; n++) {
-            for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                if(jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb) {
-                    this.maxacts[n].y[nb] = jsonIn.reward[n].val;
-                    this.maxacts[n].o[nb] = -(this.maxacts[n].y[nb]-this.maxacts[n].values[nb]);
+        if(this.layer_defs[this.layer_defs.length-1].type === "classification") {
+            // softmax
+            for(let n=0; n < this.maxacts.length; n++) {
+                for(let nb=0; nb < this.efferentNodesCount; nb++) {
+                    this.maxacts[n].y[nb] = (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb)
+                        ? jsonIn.reward[n].val
+                        : 0.0;
 
-                    // MSE
-                    cost += 0.5*this.maxacts[n].o[nb]*this.maxacts[n].o[nb];
-                } else {
-                    this.maxacts[n].y[nb] = 0.0;
-                    this.maxacts[n].o[nb] = 0.0;
+                    // cross-entropy
+                    //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
+                    let o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]))   - ((1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]));
+                    this.maxacts[n].o[nb] = o;
+
+                    // cross-entropy cost
+                    cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   + (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);
+                }
+            }
+        } else if(this.layer_defs[this.layer_defs.length-1].type === "regression") {
+            // linear regression
+            for(let n=0; n < this.maxacts.length; n++) {
+                for(let nb=0; nb < this.efferentNodesCount; nb++) {
+                    if(jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb) {
+                        this.maxacts[n].y[nb] = jsonIn.reward[n].val;
+
+                        // MSE
+                        this.maxacts[n].o[nb] = -(this.maxacts[n].y[nb]-this.maxacts[n].values[nb]);
+
+                        // MSE cost
+                        cost += 0.5*this.maxacts[n].o[nb]*this.maxacts[n].o[nb];
+                    } else {
+                        this.maxacts[n].y[nb] = 0.0;
+                        this.maxacts[n].o[nb] = 0.0;
+                    }
                 }
             }
         }
-
 
         this.comp_renderer_nodes.setArg("freezeOutput", () => {return 1.0;});
         this.comp_renderer_nodes.setArg("currentTrainLayer", () => {return -10.0;});
@@ -1504,6 +1472,8 @@ export class Graph {
             }
         }
 
+        if(this.layer_defs[this.layer_defs.length-1].type === "classification")
+            cost = -cost;
         if(this.onTrained !== null)
             this.onTrained(cost);
     };
