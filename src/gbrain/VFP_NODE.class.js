@@ -444,9 +444,9 @@ export class VFP_NODE {
 
                 // x weight
                 'if(pixAdjMatACurrent.z > 0.0) '+
-                    'fcolor = vec4(0.0, pixAdjMatACurrent.z, 0.0, 1.0);\n'+
+                    'fcolor = vec4(0.0, pixAdjMatACurrent.z, 0.0, abs(pixAdjMatACurrent.z));\n'+
                 'else '+
-                    'fcolor = vec4(abs(pixAdjMatACurrent.z), 0.0, 0.0, 1.0);\n'+
+                    'fcolor = vec4(abs(pixAdjMatACurrent.z), 0.0, 0.0, abs(pixAdjMatACurrent.z));\n'+
 
                 // x output
                 'if(multiplyOutput == 1.0) '+

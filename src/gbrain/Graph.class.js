@@ -986,13 +986,22 @@ export class Graph {
 
         let _activationFunc = (jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null) ? jsonIn.activationFunc : 1.0;
 
-        let _weight = (jsonIn.weight !== undefined && jsonIn.weight !== null) ? jsonIn.weight : null;
-        if(this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
-            if(_weight === null)
-                _weight = 0.01;
+        let _weight = null;
+        if((jsonIn.weight === undefined || jsonIn.weight === null) && (jsonIn.convId !== undefined && jsonIn.convId !== null)) {
+            if(jsonIn.convId === 0) {
+                this.lastWeight = randn(0.0, scale);
+                _weight = this.lastWeight;
+            } else
+                _weight = this.lastWeight;
         } else {
-            if(_weight === null)
-                _weight = randn(0.0, scale);
+            _weight = (jsonIn.weight !== undefined && jsonIn.weight !== null) ? jsonIn.weight : null;
+            if(this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
+                if(_weight === null)
+                    _weight = 0.01;
+            } else {
+                if(_weight === null)
+                    _weight = randn(0.0, scale);
+            }
         }
         let _linkMultiplier = (jsonIn.multiplier !== undefined && jsonIn.multiplier !== null) ? jsonIn.multiplier : 1.0;
 
@@ -1400,7 +1409,7 @@ export class Graph {
                     // cross-entropy
                     //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
                     let o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]))   - ((1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]));
-                    this.maxacts[n].o[nb] = o;
+                    this.maxacts[n].o[nb] = -1*o;
 
                     // cross-entropy cost
                     cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   + (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);

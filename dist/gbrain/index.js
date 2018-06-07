@@ -2702,11 +2702,19 @@ var Graph = exports.Graph = function () {
 
             var _activationFunc = jsonIn.activationFunc !== undefined && jsonIn.activationFunc !== null ? jsonIn.activationFunc : 1.0;
 
-            var _weight = jsonIn.weight !== undefined && jsonIn.weight !== null ? jsonIn.weight : null;
-            if (this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
-                if (_weight === null) _weight = 0.01;
+            var _weight = null;
+            if ((jsonIn.weight === undefined || jsonIn.weight === null) && jsonIn.convId !== undefined && jsonIn.convId !== null) {
+                if (jsonIn.convId === 0) {
+                    this.lastWeight = randn(0.0, scale);
+                    _weight = this.lastWeight;
+                } else _weight = this.lastWeight;
             } else {
-                if (_weight === null) _weight = randn(0.0, scale);
+                _weight = jsonIn.weight !== undefined && jsonIn.weight !== null ? jsonIn.weight : null;
+                if (this._nodesByName[jsonIn.neuronNameA].biasNeuron === 1.0) {
+                    if (_weight === null) _weight = 0.01;
+                } else {
+                    if (_weight === null) _weight = randn(0.0, scale);
+                }
             }
             var _linkMultiplier = jsonIn.multiplier !== undefined && jsonIn.multiplier !== null ? jsonIn.multiplier : 1.0;
 
@@ -3114,7 +3122,7 @@ var Graph = exports.Graph = function () {
                         // cross-entropy
                         //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
                         var _o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])) - (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
-                        this.maxacts[n].o[nb] = _o;
+                        this.maxacts[n].o[nb] = -1 * _o;
 
                         // cross-entropy cost
                         cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]) + (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
@@ -4936,7 +4944,7 @@ var VFP_NODE = exports.VFP_NODE = function () {
             'vec2 xAdjMatCurrent = get_global_id(vec2(vNodeIdOpposite, vNodeId), widthAdjMatrix);' + 'vec4 pixAdjMatACurrent = adjacencyMatrix[xAdjMatCurrent];\n' +
 
             // x weight
-            'if(pixAdjMatACurrent.z > 0.0) ' + 'fcolor = vec4(0.0, pixAdjMatACurrent.z, 0.0, 1.0);\n' + 'else ' + 'fcolor = vec4(abs(pixAdjMatACurrent.z), 0.0, 0.0, 1.0);\n' +
+            'if(pixAdjMatACurrent.z > 0.0) ' + 'fcolor = vec4(0.0, pixAdjMatACurrent.z, 0.0, abs(pixAdjMatACurrent.z));\n' + 'else ' + 'fcolor = vec4(abs(pixAdjMatACurrent.z), 0.0, 0.0, abs(pixAdjMatACurrent.z));\n' +
 
             // x output
             'if(multiplyOutput == 1.0) ' + 'fcolor *= vec4(color.xyz, 1.0);\n' + '} else if(isArrow == 1.0) {' + 'if(vIstarget == 1.0) {' + 'if(vIsSelected == 1.0) {' + 'color = vec4(colorOrange.rgb*vDist, 1.0);\n' + '} else if(vIsHover == 1.0) {' + 'color = vec4(colorPurple.rgb*vDist, 1.0);\n' + '}' + '} else {' + 'color = vec4(1.0, 0.0, 0.0, 0.0);' + '}' + 'fcolor = color;\n' + '} else if(isNodeText == 1.0) {' + 'fcolor = fontsImg[vVertexUV.xy];\n' + '}' + 'return [fcolor];'];

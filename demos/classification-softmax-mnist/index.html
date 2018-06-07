@@ -76,7 +76,7 @@
             var gbrain = new GBrain({
                 "num_inputs": num_inputs,
                 "num_actions": num_actions,
-                "learning_rate": 0.001, // 0.001 0.0005
+                "learning_rate": 0.00001, // 0.001 0.0005
                 "layer_defs": layer_defs});
 
             //gbrain.stopLearning();
@@ -121,7 +121,7 @@
                 document.getElementById("BTNID_EFFERENCEDATA"+n).addEventListener("click", (function(n) {
                     elem_fgColor.innerHTML += "<br />train "+n;
 
-                    let rew = [{dim: n, val: 1.0}];
+                    let rew = [{dim: n, val: n}];
                     gbrain.backward(rew, (function (loss) {
                         inputImage();
                     }).bind(this));
