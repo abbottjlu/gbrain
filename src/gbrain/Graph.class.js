@@ -1403,7 +1403,7 @@ export class Graph {
             for(let n=0; n < this.maxacts.length; n++) {
                 let sm = 0.0;
                 for(let nb=0; nb < this.efferentNodesCount; nb++)
-                    sm += Math.exp(this.maxacts[n].values[nb]);
+                    sm += Math.exp(this.maxacts[n].sm[nb]);
                 sm = sm*sm;
 
                 // softmax derivative
@@ -1411,9 +1411,9 @@ export class Graph {
                     let sumOpposites = 0.0;
                     for(let nc=0; nc < this.efferentNodesCount; nc++) {
                         if(nb !== nc)
-                            sumOpposites += Math.exp(this.maxacts[n].values[nc]);
+                            sumOpposites += Math.exp(this.maxacts[n].sm[nc]);
                     }
-                    this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].values[nb])*sumOpposites)/sm;
+                    this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].sm[nb])*sumOpposites)/sm;
                 }
 
 

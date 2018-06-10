@@ -3118,16 +3118,16 @@ var Graph = exports.Graph = function () {
                 for (var n = 0; n < this.maxacts.length; n++) {
                     var sm = 0.0;
                     for (var nb = 0; nb < this.efferentNodesCount; nb++) {
-                        sm += Math.exp(this.maxacts[n].values[nb]);
+                        sm += Math.exp(this.maxacts[n].sm[nb]);
                     }sm = sm * sm;
 
                     // softmax derivative
                     for (var _nb3 = 0; _nb3 < this.efferentNodesCount; _nb3++) {
                         var sumOpposites = 0.0;
                         for (var nc = 0; nc < this.efferentNodesCount; nc++) {
-                            if (_nb3 !== nc) sumOpposites += Math.exp(this.maxacts[n].values[nc]);
+                            if (_nb3 !== nc) sumOpposites += Math.exp(this.maxacts[n].sm[nc]);
                         }
-                        this.maxacts[n].smd[_nb3] = Math.exp(this.maxacts[n].values[_nb3]) * sumOpposites / sm;
+                        this.maxacts[n].smd[_nb3] = Math.exp(this.maxacts[n].sm[_nb3]) * sumOpposites / sm;
                     }
 
                     for (var _nb4 = 0; _nb4 < this.efferentNodesCount; _nb4++) {
