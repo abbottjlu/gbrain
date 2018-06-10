@@ -73,11 +73,8 @@
             layer_defs.push({"type": "fc", "num_neurons": 80, "activation": "relu"});
             layer_defs.push({"type": "classification", "num_classes": num_actions});
 
-            var gbrain = new GBrain({
-                "num_inputs": num_inputs,
-                "num_actions": num_actions,
-                "learning_rate": 0.00001, // 0.001 0.0005
-                "layer_defs": layer_defs});
+            var gbrain = new GBrain({   "learning_rate": 0.00001, // 0.001 0.0005
+                                        "layer_defs": layer_defs});
 
             //gbrain.stopLearning();
 
@@ -162,6 +159,7 @@
                             currY += 28;
                         }
 
+                        let lId = currLabel;
                         currLabel++;
                         if(currMode === "train") {
                             if(currLabel >= 60000) {
@@ -169,7 +167,7 @@
                                 currY = 0;
                                 currLabel = 0;
                             }
-                            document.getElementById("BTNID_EFFERENCEDATA"+tsTraining[currLabel]).click();
+                            document.getElementById("BTNID_EFFERENCEDATA"+tsTraining[lId]).click();
                         } else {
                             if(currLabel >= 10000) {
                                 currX = 0;

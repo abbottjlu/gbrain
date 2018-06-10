@@ -1401,15 +1401,33 @@ export class Graph {
         if(this.layer_defs[this.layer_defs.length-1].type === "classification") {
             // softmax
             for(let n=0; n < this.maxacts.length; n++) {
+                let sm = 0.0;
+                for(let nb=0; nb < this.efferentNodesCount; nb++)
+                    sm += Math.exp(this.maxacts[n].values[nb]);
+                sm = sm*sm;
+
+                // softmax derivative
+                for(let nb=0; nb < this.efferentNodesCount; nb++) {
+                    let sumOpposites = 0.0;
+                    for(let nc=0; nc < this.efferentNodesCount; nc++) {
+                        if(nb !== nc)
+                            sumOpposites += Math.exp(this.maxacts[n].values[nc]);
+                    }
+                    this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].values[nb])*sumOpposites)/sm;
+                }
+
+
                 for(let nb=0; nb < this.efferentNodesCount; nb++) {
                     this.maxacts[n].y[nb] = (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb)
                         ? jsonIn.reward[n].val
                         : 0.0;
 
                     // cross-entropy
-                    //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
-                    let o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]))   - ((1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]));
-                    this.maxacts[n].o[nb] = -1*o;
+                    let ce = -this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   - (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);
+                    // cross-entropy derivative
+                    let ced = -1* ((this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb]))       + (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb])));
+
+                    this.maxacts[n].o[nb] = ced*this.maxacts[n].smd[nb];
 
                     // cross-entropy cost
                     cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   + (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);

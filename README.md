@@ -9,10 +9,14 @@ April 2 2018
 <p>At the same time batch is executed in the same way, allowing inyect at this moment until 7 direct experiences at the same time per tick for training or 7 direct infferences at the same time per tick and WebGL context.</p>
 <p>The Reinforcement Learning class is practically the Karpathy's RL module (ConvNetJS) modified.</p>
 <p>
+<a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression/">- Basic Linear Regression</a><br />
+<a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression/"><img src="demos/linear-regression/capture.jpg" /></a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL/">- ConvNetJS Reinforcement Learning demo integration</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL/"><img src="demos/linear-regression-RL/capture.jpg" /></a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/">- Reinforcement Learning + convolution</a><br />
-<a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/"><img src="demos/linear-regression-RL-convolution/capture.png" /></a>
+<a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/"><img src="demos/linear-regression-RL-convolution/capture.png" /></a><br />
+<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/">- MNIST Classification</a><br />
+<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/"><img src="demos/classification-softmax-mnist/capture.jpg" /></a><br />
 </p>
 <h2>How it works</h2>
 <a href="demos/_RESOURCES/gbrain.jpg"><img src="demos/_RESOURCES/gbrain.jpg" style="width:500px"/></a> 

@@ -3116,33 +3116,49 @@ var Graph = exports.Graph = function () {
             if (this.layer_defs[this.layer_defs.length - 1].type === "classification") {
                 // softmax
                 for (var n = 0; n < this.maxacts.length; n++) {
+                    var sm = 0.0;
                     for (var nb = 0; nb < this.efferentNodesCount; nb++) {
-                        this.maxacts[n].y[nb] = jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb ? jsonIn.reward[n].val : 0.0;
+                        sm += Math.exp(this.maxacts[n].values[nb]);
+                    }sm = sm * sm;
+
+                    // softmax derivative
+                    for (var _nb3 = 0; _nb3 < this.efferentNodesCount; _nb3++) {
+                        var sumOpposites = 0.0;
+                        for (var nc = 0; nc < this.efferentNodesCount; nc++) {
+                            if (_nb3 !== nc) sumOpposites += Math.exp(this.maxacts[n].values[nc]);
+                        }
+                        this.maxacts[n].smd[_nb3] = Math.exp(this.maxacts[n].values[_nb3]) * sumOpposites / sm;
+                    }
+
+                    for (var _nb4 = 0; _nb4 < this.efferentNodesCount; _nb4++) {
+                        this.maxacts[n].y[_nb4] = jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === _nb4 ? jsonIn.reward[n].val : 0.0;
 
                         // cross-entropy
-                        //let d = -this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb])       - (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb]));
-                        var _o = -(this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])) - (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
-                        this.maxacts[n].o[nb] = -1 * _o;
+                        var ce = -this.maxacts[n].y[_nb4] * Math.log(this.maxacts[n].sm[_nb4]) - (1.0 - this.maxacts[n].y[_nb4]) * Math.log(1.0 - this.maxacts[n].sm[_nb4]);
+                        // cross-entropy derivative
+                        var ced = -1 * (this.maxacts[n].y[_nb4] * (1.0 / this.maxacts[n].sm[_nb4]) + (1.0 - this.maxacts[n].y[_nb4]) * (1.0 / (1.0 - this.maxacts[n].sm[_nb4])));
+
+                        this.maxacts[n].o[_nb4] = ced * this.maxacts[n].smd[_nb4];
 
                         // cross-entropy cost
-                        cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb]) + (1.0 - this.maxacts[n].y[nb]) * Math.log(1.0 - this.maxacts[n].sm[nb]);
+                        cost += this.maxacts[n].y[_nb4] * Math.log(this.maxacts[n].sm[_nb4]) + (1.0 - this.maxacts[n].y[_nb4]) * Math.log(1.0 - this.maxacts[n].sm[_nb4]);
                     }
                 }
             } else if (this.layer_defs[this.layer_defs.length - 1].type === "regression") {
                 // linear regression
                 for (var _n10 = 0; _n10 < this.maxacts.length; _n10++) {
-                    for (var _nb3 = 0; _nb3 < this.efferentNodesCount; _nb3++) {
-                        if (jsonIn.reward[_n10] !== undefined && jsonIn.reward[_n10].dim === _nb3) {
-                            this.maxacts[_n10].y[_nb3] = jsonIn.reward[_n10].val;
+                    for (var _nb5 = 0; _nb5 < this.efferentNodesCount; _nb5++) {
+                        if (jsonIn.reward[_n10] !== undefined && jsonIn.reward[_n10].dim === _nb5) {
+                            this.maxacts[_n10].y[_nb5] = jsonIn.reward[_n10].val;
 
                             // MSE
-                            this.maxacts[_n10].o[_nb3] = -(this.maxacts[_n10].y[_nb3] - this.maxacts[_n10].values[_nb3]);
+                            this.maxacts[_n10].o[_nb5] = -(this.maxacts[_n10].y[_nb5] - this.maxacts[_n10].values[_nb5]);
 
                             // MSE cost
-                            cost += 0.5 * this.maxacts[_n10].o[_nb3] * this.maxacts[_n10].o[_nb3];
+                            cost += 0.5 * this.maxacts[_n10].o[_nb5] * this.maxacts[_n10].o[_nb5];
                         } else {
-                            this.maxacts[_n10].y[_nb3] = 0.0;
-                            this.maxacts[_n10].o[_nb3] = 0.0;
+                            this.maxacts[_n10].y[_nb5] = 0.0;
+                            this.maxacts[_n10].o[_nb5] = 0.0;
                         }
                     }
                 }
@@ -3174,8 +3190,8 @@ var Graph = exports.Graph = function () {
             var _loop2 = function _loop2(r) {
                 var dd = [];
                 for (var _n11 = 0; _n11 < _this6.gpu_batch_size; _n11++) {
-                    for (var _nb4 = 0; _nb4 < _this6.efferentNodesCount; _nb4++) {
-                        var cc = _this6.maxacts[cr].o[_nb4];
+                    for (var _nb6 = 0; _nb6 < _this6.efferentNodesCount; _nb6++) {
+                        var cc = _this6.maxacts[cr].o[_nb6];
                         dd.push(cc);
                     }
                     cr++;
@@ -3878,16 +3894,16 @@ var Graph = exports.Graph = function () {
 
             var oppositeId = 0;
 
-            for (var _o2 = 0; _o2 < 2; _o2++) {
+            for (var _o = 0; _o < 2; _o++) {
                 for (var n = 0; n < this.mesh_arrows.vertexArray.length / 4; n++) {
                     var idxVertex = n * 4;
-                    if (_o2 === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
+                    if (_o === 0) oppositeId = this.arrowsObj[this.currentArrowsObjItem].arrowArrayItemStart;
 
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowPosXYZW.push(0.0, 0.0, 0.0, 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexPos.push(this.mesh_arrows.vertexArray[idxVertex], this.mesh_arrows.vertexArray[idxVertex + 1], this.mesh_arrows.vertexArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexNormal.push(this.mesh_arrows.normalArray[idxVertex], this.mesh_arrows.normalArray[idxVertex + 1], this.mesh_arrows.normalArray[idxVertex + 2], 1.0);
                     this.arrowsObj[this.currentArrowsObjItem].arrayArrowVertexTexture.push(this.mesh_arrows.textureArray[idxVertex], this.mesh_arrows.textureArray[idxVertex + 1], this.mesh_arrows.textureArray[idxVertex + 2], 1.0);
-                    if (_o2 === 0) {
+                    if (_o === 0) {
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowData.push(jsonIn.origin_nodeId, jsonIn.target_nodeId, 0.0, jsonIn.convId);
                         this.arrowsObj[this.currentArrowsObjItem].arrayArrowNodeName.push(jsonIn.origin_nodeName);
                         if (jsonIn.origin_layoutNodeArgumentData !== undefined && jsonIn.origin_layoutNodeArgumentData !== null) {
