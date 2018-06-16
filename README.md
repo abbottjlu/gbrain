@@ -15,7 +15,7 @@ April 2 2018
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL/"><img src="demos/linear-regression-RL/capture.jpg" /></a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/">- Reinforcement Learning + convolution</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/"><img src="demos/linear-regression-RL-convolution/capture.png" /></a><br />
-<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/">- MNIST Classification</a><br />
+<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/">- MNIST Classification (in progress)</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/"><img src="demos/classification-softmax-mnist/capture.jpg" /></a><br />
 </p>
 <h2>How it works</h2>

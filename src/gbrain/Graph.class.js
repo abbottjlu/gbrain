@@ -1373,10 +1373,10 @@ export class Graph {
                 for(let n=0; n < this.maxacts.length; n++) {
                     let sm = 0.0;
                     for(let nb=0; nb < this.efferentNodesCount; nb++)
-                        sm += Math.exp(this.maxacts[n].values[nb]);
+                        sm += Math.exp(this.maxacts[n].values[nb]-this.maxacts[n].value);
 
                     for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                        this.maxacts[n].sm[nb] = Math.exp(this.maxacts[n].values[nb])/sm;
+                        this.maxacts[n].sm[nb] = Math.exp(this.maxacts[n].values[nb]-this.maxacts[n].value)/sm;
 
                         if(nb === this.maxacts[n].action)
                             this.maxacts[n].value = this.maxacts[n].sm[nb];
@@ -1400,39 +1400,11 @@ export class Graph {
         let cost = 0.0;
         if(this.layer_defs[this.layer_defs.length-1].type === "classification") {
             // softmax
-            for(let n=0; n < this.maxacts.length; n++) {
-                let sm = 0.0;
-                for(let nb=0; nb < this.efferentNodesCount; nb++)
-                    sm += Math.exp(this.maxacts[n].sm[nb]);
-                sm = sm*sm;
-
-                // softmax derivative
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    let sumOpposites = 0.0;
-                    for(let nc=0; nc < this.efferentNodesCount; nc++) {
-                        if(nb !== nc)
-                            sumOpposites += Math.exp(this.maxacts[n].sm[nc]);
-                    }
-                    this.maxacts[n].smd[nb] = (Math.exp(this.maxacts[n].sm[nb])*sumOpposites)/sm;
-                }
-
-
-                for(let nb=0; nb < this.efferentNodesCount; nb++) {
-                    this.maxacts[n].y[nb] = (jsonIn.reward[n] !== undefined && jsonIn.reward[n].dim === nb)
-                        ? jsonIn.reward[n].val
-                        : 0.0;
-
-                    // cross-entropy
-                    let ce = -this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   - (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);
-                    // cross-entropy derivative
-                    let ced = -1* ((this.maxacts[n].y[nb] * (1.0/this.maxacts[n].sm[nb]))       + (1.0-this.maxacts[n].y[nb]) * (1.0/(1.0-this.maxacts[n].sm[nb])));
-
-                    this.maxacts[n].o[nb] = ced*this.maxacts[n].smd[nb];
-
-                    // cross-entropy cost
-                    cost += this.maxacts[n].y[nb] * Math.log(this.maxacts[n].sm[nb])   + (1.0-this.maxacts[n].y[nb]) * Math.log(1.0-this.maxacts[n].sm[nb]);
-                }
+            for(let nb=0; nb < this.efferentNodesCount; nb++) {
+                let indicator = nb === jsonIn.reward[0].dim ? 1.0 : 0.0;
+                this.maxacts[0].o[nb] = -(indicator - this.maxacts[0].sm[nb]);
             }
+            cost += Math.log(this.maxacts[0].sm[jsonIn.reward[0].dim]);
         } else if(this.layer_defs[this.layer_defs.length-1].type === "regression") {
             // linear regression
             for(let n=0; n < this.maxacts.length; n++) {
