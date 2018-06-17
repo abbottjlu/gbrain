@@ -445,7 +445,8 @@ export class GBrain {
 
 
             } else if(  jsonIn.layers[n].layer_type === "fc" ||
-                        jsonIn.layers[n].layer_type === "regression") {
+                        jsonIn.layers[n].layer_type === "regression" ||
+                        jsonIn.layers[n].layer_type === "classification") {
                 jsonIn.layers[n].weights = [];
                 for(let key in jsonIn.layers[n].filters[0].w) {
                     for(let nb=0; nb < jsonIn.layers[n].filters.length; nb++) {

@@ -15,7 +15,7 @@ April 2 2018
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL/"><img src="demos/linear-regression-RL/capture.jpg" /></a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/">- Reinforcement Learning + convolution</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/linear-regression-RL-convolution/"><img src="demos/linear-regression-RL-convolution/capture.png" /></a><br />
-<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/">- MNIST Classification (in progress)</a><br />
+<a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/">- MNIST Classification</a><br />
 <a href="http://stormcolour.appspot.com/gbrain/demos/classification-softmax-mnist/"><img src="demos/classification-softmax-mnist/capture.jpg" /></a><br />
 </p>
 <h2>How it works</h2>
@@ -23,5 +23,5 @@ April 2 2018
 <p>We not need element-wise matrixs and send information to CPU on every layer result.</p>
 <p>On backpropagation the weight data is updated over the Adjacency Matrix</p>
 <p>Activation function is included inside own neuron, avoiding to have propagate it to any reluctance layer and so we gain better performance.</p>
-<p>At this moment only linear regression with leaky-relu activation function is implemented.</p>
+<p>At this moment only leaky-relu activation function is implemented.</p>
 <p>I have been able to learn about this algorithm especially by the <a href="https://www.coursera.org/learn/machine-learning">Andrew NG Machine Learning course</a>, <a href="https://github.com/karpathy/convnetjs">Karpathy's ConvNetJS</a>, <a href="https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/">the Matt Mazur paper</a>, <a href="https://medium.com/@14prakash/back-propagation-is-very-simple-who-made-it-complicated-97b794c97e5c">Prakash Jay tutorial</a>, Miguel Ángel Lobato & users that shared information on internet. Thanks.</p>

@@ -5818,7 +5818,7 @@ var GBrain = exports.GBrain = function () {
         value: function fromJson(jsonIn) {
             var layer_defs = [];
             for (var n = 0; n < jsonIn.layers.length; n++) {
-                if (jsonIn.layers[n].layer_type === "input") {} else if (jsonIn.layers[n].layer_type === "fc" || jsonIn.layers[n].layer_type === "regression") {
+                if (jsonIn.layers[n].layer_type === "input") {} else if (jsonIn.layers[n].layer_type === "fc" || jsonIn.layers[n].layer_type === "regression" || jsonIn.layers[n].layer_type === "classification") {
                     jsonIn.layers[n].weights = [];
                     for (var key in jsonIn.layers[n].filters[0].w) {
                         for (var nb = 0; nb < jsonIn.layers[n].filters.length; nb++) {

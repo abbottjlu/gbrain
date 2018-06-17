@@ -35,7 +35,7 @@
             <div id='elem_bgColor'></div>
             <div id='elem_fgColor'></div>
 
-            <button id="BTNID_CHANGE_TS">TEST/TRAINING</button> <br />
+            <button id="BTNID_CHANGE_TS">change to test</button> <br />
             <button id="BTNID_AFFERENCEDATA" style="display:none">new input data</button> <br />
             <button id="BTNID_EFFERENCEDATA0" style="display:none">train 0</button> <br />
             <button id="BTNID_EFFERENCEDATA1" style="display:none">train 1</button> <br />
@@ -47,11 +47,32 @@
             <button id="BTNID_EFFERENCEDATA7" style="display:none">train 7</button> <br />
             <button id="BTNID_EFFERENCEDATA8" style="display:none">train 8</button> <br />
             <button id="BTNID_EFFERENCEDATA9" style="display:none">train 9</button> <br />
+            <button id="BTNID_FROMJSON" style="display:inline-block;">Load model from Textarea (samples: 57000; learning rate: 0.001)</button>
         </div>
         <div style="width:79%;display:inline-block">
 
         </div>
 		<script>
+            document.getElementById("BTNID_FROMJSON").addEventListener("click", function () {
+                document.getElementById("BTNID_FROMJSON").innerHTML = "wait...";
+
+                var req = new XMLHttpRequest();
+                idu = Math.round(Math.random());
+                req.open("GET", "trained-model.json", true);
+                req.responseType = "text";
+                req.onload = (function(onload) {
+                    document.getElementById("BTNID_FROMJSON").innerHTML = "Load model from Textarea (samples: 57000; learning rate: 0.001)";
+
+                    gbrain.fromJson(JSON.parse(req.response));
+
+                    if(currMode === "train")
+                        document.getElementById("BTNID_CHANGE_TS").click();
+                }).bind(this, onload);
+                req.send(null);
+
+                //alert("conv layer exports still not ready");
+            });
+
             var imgTrain = null;
             var imgTest = null;
             var hy = null;
@@ -64,7 +85,6 @@
             var inputW = 16;
             var inputH = 16;
 
-            var num_inputs = inputW*inputH;
             var num_actions = 10;
             var layer_defs = [];
             layer_defs.push({"type": "input", "out_sx": inputW, "out_sy": inputH});
@@ -86,14 +106,22 @@
             };
             render();
 
-            var arr = [ 0,0,0,0,0,0,0,0,
-                        0,1,1,1,1,1,1,0,
-                        0,0,0,0,0,0,1,0,
-                        0,0,0,0,0,0,1,0,
-                        0,0,1,1,1,1,1,0,
-                        0,0,0,0,0,0,1,0,
-                        0,1,1,1,1,1,1,0,
-                        0,0,0,0,0,0,0,0];
+            var arr = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
             gbrain.forward(arr, function(actionix) {
 
             });
@@ -107,6 +135,7 @@
 
 
             document.getElementById("BTNID_CHANGE_TS").addEventListener("click", (function() {
+                document.getElementById("BTNID_CHANGE_TS").innerHTML = "change to "+currMode;
                 currMode = (currMode === "train") ? "test" : "train";
             }).bind(this));
 
@@ -114,7 +143,7 @@
                 inputImage();
             }).bind(this));
 
-            for(var n=0; n < 10; n++) {
+            for(var n=0; n < num_actions; n++) {
                 document.getElementById("BTNID_EFFERENCEDATA"+n).addEventListener("click", (function(n) {
                     elem_fgColor.innerHTML += "<br />train "+n;
 
