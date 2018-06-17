@@ -47,7 +47,7 @@
             <button id="BTNID_EFFERENCEDATA7" style="display:none">train 7</button> <br />
             <button id="BTNID_EFFERENCEDATA8" style="display:none">train 8</button> <br />
             <button id="BTNID_EFFERENCEDATA9" style="display:none">train 9</button> <br />
-            <button id="BTNID_FROMJSON" style="display:inline-block;">Load model from Textarea (samples: 57000; learning rate: 0.001)</button>
+            <button id="BTNID_FROMJSON" style="display:inline-block;">Load learned model (samples: 57000; learning rate: 0.001)</button>
         </div>
         <div style="width:79%;display:inline-block">
 
@@ -61,9 +61,9 @@
                 req.open("GET", "trained-model.json", true);
                 req.responseType = "text";
                 req.onload = (function(onload) {
-                    document.getElementById("BTNID_FROMJSON").innerHTML = "Load model from Textarea (samples: 57000; learning rate: 0.001)";
-
                     gbrain.fromJson(JSON.parse(req.response));
+
+                    document.getElementById("BTNID_FROMJSON").innerHTML = "Load learned model (samples: 57000; learning rate: 0.001)";
 
                     if(currMode === "train")
                         document.getElementById("BTNID_CHANGE_TS").click();
